@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>전조등 눈부심 장애물 인지 시뮬레이터</title>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--line:#dfe5ee;--text:#172033;--muted:#68758a;--blue:#3b82f6;--green:#20a464;--yellow:#d99b00;--red:#df4d59;--dark:#101827}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+header{background:var(--dark);color:white;padding:20px 24px}header h1{margin:0;font-size:22px}header p{margin:6px 0 0;color:#b8c4d6;font-size:13px}
+main{max-width:1200px;margin:auto;padding:18px;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,.8fr);gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 8px 28px rgba(31,45,61,.05)}
+.scene{position:relative;background:#08111d;border-radius:12px;overflow:hidden}.scene canvas{width:100%;display:block;aspect-ratio:16/9}.sceneTag{position:absolute;top:12px;left:12px;background:rgba(0,0,0,.52);color:#dfeaff;padding:7px 10px;border-radius:999px;font-size:11px}
+.section{font-weight:800;font-size:14px;margin-bottom:12px}.hint{font-size:12px;color:var(--muted);line-height:1.5}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}.metric{padding:12px;border:1px solid var(--line);border-radius:12px}.metric .label{font-size:11px;color:var(--muted)}.metric .value{font-size:22px;font-weight:850;margin-top:3px}.metric .sub{font-size:11px;margin-top:3px}
+.risk{margin-top:14px}.riskHead{display:flex;justify-content:space-between;font-size:12px;font-weight:700;margin-bottom:6px}.bar{height:10px;background:#eef2f7;border-radius:999px;overflow:hidden}.fill{height:100%;width:0;background:linear-gradient(90deg,#20a464,#d99b00,#df4d59);border-radius:999px}
+.primaryControls{display:grid;gap:12px}.control{padding:12px;border:1px solid var(--line);border-radius:12px;background:#fbfcfe}.control label{display:flex;justify-content:space-between;font-size:12px;font-weight:750;margin-bottom:8px}.control .val{color:var(--blue);font-variant-numeric:tabular-nums}input[type=range]{width:100%;accent-color:var(--blue)}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px}.quick button{border:1px solid var(--line);background:white;border-radius:10px;padding:11px;font-weight:750;cursor:pointer}.quick button.active{border-color:#8eb8ff;background:#eef5ff;color:#1f63c5}.quick button:hover{background:#f4f8ff}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.actions button{border:0;border-radius:10px;padding:10px 12px;font-weight:800;cursor:pointer}.primary{background:var(--blue);color:white}.secondary{background:#eef3f9;color:#25364d}.danger{background:#fdecef;color:#b43440}
+details{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}summary{cursor:pointer;font-weight:800;font-size:13px}.advancedGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.tactile{margin-top:12px;padding:12px;border-radius:12px;background:#f3f8ff;border:1px solid #d7e7ff}.tactile strong{display:block;font-size:15px}.tactile span{color:var(--muted);font-size:12px}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}.chart{height:270px}.chart canvas{width:100%;height:100%}
+.log{margin-top:16px}.table{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px}.table table{width:100%;border-collapse:collapse;font-size:11px}.table th,.table td{padding:7px;border-bottom:1px solid #edf1f5;text-align:right;white-space:nowrap}.table th{position:sticky;top:0;background:#f7f9fc}.table th:first-child,.table td:first-child{text-align:left}
+.note{margin-top:10px;font-size:11px;color:var(--muted);line-height:1.5}
+@media(max-width:900px){main{grid-template-columns:1fr}.charts{grid-template-columns:1fr}}
+@media(max-width:620px){.metrics{grid-template-columns:1fr 1fr}.advancedGrid{grid-template-columns:1fr}.quick{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header><h1>차량 전조등 눈부심 장애물 인지 시뮬레이터</h1><p>빛의 세기와 차량 거리가 가까워질수록 눈부심이 심해지고, 카메라 인식이 약해지는 관계를 확인합니다.</p></header>
+<main>
+<section>
+<div class="card">
+  <div class="section">① 야간 상황</div>
+  <div class="scene"><canvas id="scene" width="960" height="540"></canvas><div class="sceneTag">SYNTHETIC SIMULATION</div></div>
+  <div class="metrics">
+    <div class="metric"><div class="label">카메라 신뢰도</div><div class="value" id="camVal">0.00</div><div class="sub" id="camState">낮음</div></div>
+    <div class="metric"><div class="label">초음파 거리</div><div class="value" id="ultraVal">—</div><div class="sub" id="ultraState">미검출</div></div>
+    <div class="metric"><div class="label">융합 위험도</div><div class="value" id="fusionVal">0.00</div><div class="sub" id="fusionState">낮음</div></div>
+    <div class="metric"><div class="label">현재 판단</div><div class="value" id="riskText">안전</div><div class="sub" id="riskSub">낮은 위험</div></div>
+  </div>
+  <div class="risk"><div class="riskHead"><span>위험도</span><span id="riskPct">0%</span></div><div class="bar"><div class="fill" id="riskFill"></div></div></div>
+  <div class="tactile"><strong id="tactileVal">짧은 1회 진동</strong><span>촉각 인터페이스가 전달할 대표 패턴</span></div>
+</div>
+
+<div class="charts">
+  <div class="card chart"><div class="section">눈부심 ↑ → 카메라 신뢰도 ↓</div><canvas id="glareChart"></canvas></div>
+  <div class="card chart"><div class="section">카메라 단독 vs 센서 융합</div><canvas id="missChart"></canvas></div>
+</div>
+
+<div class="card log"><div class="section">실험 기록</div><div class="table"><table><thead><tr><th>Run</th><th>G</th><th>각도</th><th>장애물</th><th>Camera</th><th>초음파</th><th>Fusion</th><th>미검출</th></tr></thead><tbody id="logBody"></tbody></table></div></div>
+</section>
+
+<aside>
+<div class="card">
+  <div class="section">② 핵심 변수</div>
+  <div class="hint" style="margin-bottom:12px">먼저 아래 4개만 바꿔도 대부분의 핵심 실험을 해볼 수 있습니다.</div>
+  <div class="primaryControls">
+    <div class="control"><label><span>눈부심 세기</span><span class="val" id="gOut"></span></label><input id="g" type="range" min="0" max="4" step="0.1" value="1.2"></div>
+    <div class="control"><label><span>전조등 각도</span><span class="val" id="angleOut"></span></label><input id="angle" type="range" min="-30" max="30" step="1" value="0"></div>
+    <div class="control"><label><span>장애물 거리</span><span class="val" id="odOut"></span></label><input id="od" type="range" min="2" max="50" step="1" value="3"></div>
+    <div class="control"><label><span>차량 거리</span><span class="val" id="hdOut"></span></label><input id="hd" type="range" min="5" max="100" step="1" value="30"></div>
+  </div>
+
+  <div class="section" style="margin-top:16px">빠른 상황 선택</div>
+  <div class="quick">
+    <button data-preset="normal">평상시</button>
+    <button data-preset="mild">약한 눈부심</button>
+    <button data-preset="strong">강한 눈부심</button>
+    <button data-preset="center">정면 눈부심</button>
+  </div>
+
+  <div class="actions"><button class="primary" id="run">현재 조건 기록</button><button class="secondary" id="experiment">56조건 자동 실험</button><button class="secondary" id="random">랜덤 상황</button><button class="danger" id="reset">초기화</button><button class="secondary" id="download">CSV 저장</button></div>
+
+  <details><summary>고급 변수 12개</summary>
+    <div class="advancedGrid">
+      <div class="control"><label><span>광원 크기</span><span class="val" id="srcOut"></span></label><input id="src" type="range" min="2" max="14" step="1" value="6"></div>
+      <div class="control"><label><span>Bloom 반경</span><span class="val" id="bloomOut"></span></label><input id="bloom" type="range" min="4" max="45" step="1" value="18"></div>
+      <div class="control"><label><span>Halo</span><span class="val" id="haloOut"></span></label><input id="halo" type="range" min="0" max="0.8" step="0.01" value="0.28"></div>
+      <div class="control"><label><span>Veiling glare</span><span class="val" id="veilOut"></span></label><input id="veil" type="range" min="0" max="0.8" step="0.01" value="0.10"></div>
+      <div class="control"><label><span>주변 밝기</span><span class="val" id="ambientOut"></span></label><input id="ambient" type="range" min="0" max="0.5" step="0.01" value="0.12"></div>
+      <div class="control"><label><span>노면 젖음</span><span class="val" id="wetOut"></span></label><input id="wet" type="range" min="0" max="1" step="0.01" value="0"></div>
+      <div class="control"><label><span>장애물 좌우 위치</span><span class="val" id="latOut"></span></label><input id="lat" type="range" min="-220" max="220" step="5" value="0"></div>
+      <div class="control"><label><span>장애물 반사율</span><span class="val" id="reflOut"></span></label><input id="refl" type="range" min="0" max="1" step="0.01" value="0.35"></div>
+      <div class="control"><label><span>카메라 노출</span><span class="val" id="expOut"></span></label><input id="exp" type="range" min="0.5" max="2" step="0.05" value="1"></div>
+      <div class="control"><label><span>카메라 Gain</span><span class="val" id="gainOut"></span></label><input id="gain" type="range" min="0.5" max="3" step="0.05" value="1"></div>
+      <div class="control"><label><span>초음파 오차 σ</span><span class="val" id="noiseOut"></span></label><input id="noise" type="range" min="0" max="0.4" step="0.01" value="0.06"></div>
+      <div class="control"><label><span>초음파 Dropout</span><span class="val" id="dropOut"></span></label><input id="drop" type="range" min="0" max="0.4" step="0.01" value="0.04"></div>
+      <div class="control"><label><span>Camera 비중 α</span><span class="val" id="alphaOut"></span></label><input id="alpha" type="range" min="0" max="1" step="0.01" value="0.65"></div>
+      <div class="control"><label><span>HDR</span></label><select id="hdr" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:white"><option value="0">OFF</option><option value="1">ON</option></select></div>
+    </div>
+  </details>
+  <div class="note">현재 카메라 점수는 실제 YOLO 성능이 아닌, 눈부심으로 인한 영상 열화를 탐색하기 위한 설명 가능한 proxy입니다. 최종 연구에서는 실제 야간 영상과 detector 결과로 보정해야 합니다.</div>
+</div>
+</aside>
+</main>
+<script>
+const $=id=>document.getElementById(id), canvas=$('scene'), ctx=canvas.getContext('2d');
+const state={rows:[],runId:0};
+const ids=['g','angle','hd','src','bloom','halo','veil','ambient','wet','od','lat','refl','exp','gain','noise','drop','alpha'];
+const base={g:1.2,angle:0,hd:30,src:6,bloom:18,halo:.28,veil:.10,ambient:.18,wet:0,od:3,lat:0,refl:.35,exp:1,gain:1,noise:.06,drop:.04,alpha:.65};
+function v(id){return parseFloat($(id).value)}
+function clamp(x,lo,hi){return Math.max(lo,Math.min(hi,x))}
+function level(x){return x>=.65?'높음':x>=.3?'중간':'낮음'}
+function labels(){
+  $('gOut').textContent=v('g').toFixed(1);$('angleOut').textContent=v('angle').toFixed(0)+'°';$('hdOut').textContent=v('hd').toFixed(0)+' m';$('odOut').textContent=v('od').toFixed(0)+' m';
+  $('srcOut').textContent=v('src').toFixed(0)+' px';$('bloomOut').textContent=v('bloom').toFixed(0)+' px';$('haloOut').textContent=v('halo').toFixed(2);$('veilOut').textContent=v('veil').toFixed(2);$('ambientOut').textContent=v('ambient').toFixed(2);$('wetOut').textContent=v('wet').toFixed(2);$('latOut').textContent=v('lat').toFixed(0)+' px';$('reflOut').textContent=v('refl').toFixed(2);$('expOut').textContent=v('exp').toFixed(2);$('gainOut').textContent=v('gain').toFixed(2);$('noiseOut').textContent=v('noise').toFixed(2)+' m';$('dropOut').textContent=(v('drop')*100).toFixed(0)+'%';$('alphaOut').textContent=v('alpha').toFixed(2);
+}
+function setVals(obj){for(const [k,val] of Object.entries(obj))if($(k))$(k).value=val;render()}
+
+// 1) Environmental visibility: low light is bad, a moderate ambient level is best.
+function exposureSuitability(ambient){
+  const peak=.20;
+  const leftSigma=.14;
+  const rightSigma=.42;
+  const sigma=ambient<peak?leftSigma:rightSigma;
+  return Math.exp(-Math.pow(ambient-peak,2)/(2*sigma*sigma));
+}
+
+// 2) Headlight glare: stronger light and shorter distance increase glare monotonically.
+function calcGlare(){
+  const G=v('g'), angle=v('angle'), hd=v('hd');
+  const distanceFactor=clamp(30/Math.max(hd,5),.25,6);
+  const angleFactor=.25+.75*Math.exp(-Math.pow(Math.abs(angle)/18,2));
+  const raw=G*distanceFactor*angleFactor;
+  const optical=.55+.012*v('bloom')+.35*v('halo')+.45*v('veil');
+  return clamp(1-Math.exp(-raw*.40*optical),0,1);
+}
+
+// 3) Camera confidence: combines low-light suitability and glare damage.
+function calcCamera(){
+  const ambient=v('ambient'), od=v('od'), refl=v('refl'), wet=v('wet'), exp=v('exp'), gain=v('gain');
+  const glare=calcGlare();
+  const lightFit=exposureSuitability(ambient); // 0..1, maximum around moderate ambient
+  const objectSize=clamp(10/Math.max(od,2),.25,1);
+  const reflectability=.55+.45*refl;
+  const baseVisibility=.10+.90*lightFit;
+
+  // Glare destroys contrast and creates clipped/bloomed pixels.
+  const contrastLoss=clamp(.10+.84*glare+.10*v('veil')+.05*wet,0,.97);
+  const saturation=clamp(1-Math.exp(-glare*(2.1+.03*v('bloom')+.65*v('veil'))),0,.995);
+
+  // Exposure/gain can help low light a little, but amplify glare once it is present.
+  const exposureHelp=clamp((exp-1)*.16*(1-glare),-.12,.12);
+  const gainHelp=clamp((gain-1)*.08*(1-glare),-.08,.08);
+  const hdrHelp=$('hdr').value==='1' ? .06*glare : 0;
+
+  let cam=baseVisibility;
+  cam*=.72+.28*objectSize;
+  cam*=.75+.25*reflectability;
+  cam*=1-contrastLoss;
+  cam-=.22*saturation;
+  cam+=exposureHelp+gainHelp+hdrHelp;
+  cam-=.06*v('wet')*glare;
+  cam=clamp(cam,.01,.995);
+
+  return {cam,lightFit,glare,saturation,objectSize,reflectability};
+}
+
+// 4) Ultrasonic: deterministic in live mode, noisy/dropout only during automatic experiments.
+function calcUltrasonic(){
+  const od=v('od'), lat=v('lat');
+  if(od>4 || Math.abs(lat)>70) return {distance:null,confidence:0,presence:0};
+  if(window.__experimentMode){
+    const raw=Math.sin(od*12.9898+v('hd')*78.233+v('angle')*37.719)*43758.5453;
+    const u=raw-Math.floor(raw);
+    if(u<v('drop')) return {distance:null,confidence:0,presence:0};
+    const raw2=Math.sin(od*4.123+v('hd')*1.731+v('angle')*.917)*43758.5453;
+    const n=raw2-Math.floor(raw2);
+    const distance=od+(2*n-1)*v('noise')*1.8;
+    const confidence=clamp(1-Math.abs(distance-od)/Math.max(.25,v('noise')*5),0,1);
+    const presence=clamp((4-distance)/4,0,1)*confidence;
+    return {distance,confidence,presence};
+  }
+  return {distance:od,confidence:1,presence:clamp((4-od)/4,0,1)};
+}
+
+function calc(){
+  const camera=calcCamera();
+  const ultra=calcUltrasonic();
+  const od=v('od'), alpha=v('alpha');
+
+  // The simulated scene always contains one obstacle.
+  // Fusion risk means "risk of failing to safely handle this existing obstacle".
+  const proximityRisk=clamp((12-od)/10,0,1); // close obstacle => higher consequence
+  const cameraMissRisk=1-camera.cam;
+  const cameraDangerEvidence=proximityRisk*cameraMissRisk;
+  const ultrasonicEvidence=proximityRisk*ultra.presence;
+
+  // Camera alpha controls how much camera evidence contributes.
+  const fusion=clamp(alpha*cameraDangerEvidence+(1-alpha)*ultrasonicEvidence,0,1);
+
+  return {
+    G:v('g'),angle:v('angle'),hd:v('hd'),od,lat:v('lat'),cam:camera.cam,
+    lightFit:camera.lightFit,glareSeverity:camera.glare,sat:camera.saturation,
+    ud:ultra.distance,uc:ultra.confidence,ultraPresence:ultra.presence,
+    proximityRisk,cameraMissRisk,cameraDangerEvidence,ultrasonicEvidence,
+    fusion,camMiss:camera.cam<.5,fusionMiss:fusion>=.3
+  };
+}
+
+function draw(r){
+  const W=canvas.width,H=canvas.height;
+  const ambient=v('ambient'), glare=r.glareSeverity;
+  const grad=ctx.createLinearGradient(0,0,0,H);
+  const sky=Math.round(2+42*ambient), road=Math.round(8+60*ambient);
+  grad.addColorStop(0,`rgb(${Math.round(sky*.65)},${Math.round(sky*.75)},${Math.round(sky)})`);
+  grad.addColorStop(.56,`rgb(${Math.round(sky*.45)},${Math.round(sky*.55)},${Math.round(sky*.72)})`);
+  grad.addColorStop(.57,`rgb(${Math.round(road*.45)},${Math.round(road*.52)},${Math.round(road*.62)})`);
+  grad.addColorStop(1,`rgb(${Math.round(road*.7)},${Math.round(road*.75)},${Math.round(road*.82)})`);
+  ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);
+  if(ambient<.06){ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(0,0,W,H)}
+
+  // Road
+  ctx.fillStyle='#151b20';ctx.beginPath();ctx.moveTo(W*.18,H);ctx.lineTo(W*.43,H*.52);ctx.lineTo(W*.57,H*.52);ctx.lineTo(W*.82,H);ctx.closePath();ctx.fill();
+  if(v('wet')>0){ctx.globalAlpha=.15*v('wet');ctx.fillStyle='#dceeff';ctx.fillRect(W*.4,H*.58,W*.2,H*.42);ctx.globalAlpha=1}
+
+  // Background lights
+  for(let i=0;i<6;i++){ctx.fillStyle=`rgba(210,225,245,${Math.max(.04,ambient*.8)})`;ctx.beginPath();ctx.arc(W*(.08+i*.17),H*(.33+(i%2)*.02),3,0,Math.PI*2);ctx.fill()}
+
+  // Obstacle
+  const ox=W/2+r.lat, scale=clamp(22/Math.max(r.od,2),.35,2.5),ow=32*scale,oh=78*scale,by=H*.88,y=by-oh;
+  ctx.fillStyle=`rgba(${55+100*v('refl')},${65+100*v('refl')},${75+100*v('refl')},.96)`;ctx.fillRect(ox-ow/2,y,ow,oh);
+  ctx.fillStyle=`rgba(225,238,246,${.12+.7*v('refl')})`;ctx.fillRect(ox-ow*.22,y+oh*.2,ow*.44,oh*.12);
+
+  // Headlight + glare
+  const hx=W/2+(r.angle/30)*W*.42,hy=H*.48;
+  for(let layer=6;layer>=1;layer--){
+    const rad=v('bloom')*(1+layer*.55), a=Math.min(.85,v('g')*.035*layer*(30/Math.max(v('hd'),5)));
+    const g=ctx.createRadialGradient(hx,hy,1,hx,hy,rad);
+    g.addColorStop(0,`rgba(255,249,230,${a})`);g.addColorStop(.4,`rgba(255,249,230,${a*.4})`);g.addColorStop(1,'rgba(255,249,230,0)');
+    ctx.fillStyle=g;ctx.fillRect(hx-rad,hy-rad,rad*2,rad*2);
+  }
+  ctx.fillStyle='rgba(255,252,240,.96)';ctx.beginPath();ctx.arc(hx,hy,Math.max(2,v('src')),0,Math.PI*2);ctx.fill();
+  const va=Math.min(.55,v('veil')*v('g')*(30/Math.max(v('hd'),5)));ctx.fillStyle=`rgba(235,244,255,${va})`;ctx.fillRect(0,0,W,H);
+
+  ctx.fillStyle='rgba(0,0,0,.52)';ctx.fillRect(14,14,305,92);ctx.fillStyle='#e8f0ff';ctx.font='14px system-ui';
+  ctx.fillText(`주변 밝기 ${ambient.toFixed(2)} · 전조등 G=${r.G.toFixed(1)}`,28,38);
+  ctx.fillText(`차량 거리 ${r.hd.toFixed(0)} m · 장애물 ${r.od.toFixed(0)} m`,28,60);
+  ctx.fillText(`가시성 ${r.cam.toFixed(2)} · 눈부심 ${r.glareSeverity.toFixed(2)}`,28,82);
+  ctx.fillText(`융합 위험 ${r.fusion.toFixed(2)}`,28,102);
+}
+
+function render(){
+  labels();
+  const r=calc();
+  draw(r);
+  $('camVal').textContent=r.cam.toFixed(2);$('camState').textContent=level(r.cam);
+  $('ultraVal').textContent=r.ud==null?'—':r.ud.toFixed(2)+' m';$('ultraState').textContent=r.ud==null?'미검출':'검출';
+  $('fusionVal').textContent=r.fusion.toFixed(2);$('fusionState').textContent=level(r.fusion);
+  $('riskPct').textContent=(r.fusion*100).toFixed(0)+'%';$('riskFill').style.width=(r.fusion*100).toFixed(0)+'%';
+
+  const band=r.fusion>=.65?'주의':r.fusion>=.30?'경계':'안전';
+  $('riskText').textContent=band;$('riskSub').textContent=band==='주의'?'높은 위험':band==='경계'?'관찰 필요':'낮은 위험';
+  $('tactileVal').textContent=band==='주의'?'긴 진동 / 반복':band==='경계'?'짧-짧 진동':'짧은 1회 진동';
+  return r;
+}
+
+function addLog(){
+  const r=render();state.runId++;state.rows.push({run:state.runId,...r});
+  const tr=document.createElement('tr');tr.innerHTML=`<td>${state.runId}</td><td>${r.G.toFixed(1)}</td><td>${r.angle}°</td><td>${r.od.toFixed(0)}m</td><td>${r.cam.toFixed(2)}</td><td>${r.ud==null?'—':r.ud.toFixed(2)}</td><td>${r.fusion.toFixed(2)}</td><td>${r.camMiss?'O':'—'} / ${r.fusionMiss?'O':'—'}</td>`;$('logBody').prepend(tr);charts();
+}
+function lineChart(id,series){
+  const c=$(id),dpr=devicePixelRatio||1,w=c.clientWidth||500,h=c.clientHeight||250;c.width=w*dpr;c.height=h*dpr;
+  const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.fillStyle='#fff';x.fillRect(0,0,w,h);
+  const pad={l:40,r:10,t:12,b:28},pw=w-pad.l-pad.r,ph=h-pad.t-pad.b;x.strokeStyle='#e2e8f0';
+  for(let i=0;i<=4;i++){const yy=pad.t+ph*i/4;x.beginPath();x.moveTo(pad.l,yy);x.lineTo(w-pad.r,yy);x.stroke();x.fillStyle='#77859a';x.font='10px system-ui';x.fillText((1-i/4).toFixed(2),6,yy+3)}
+  series.forEach(s=>{x.beginPath();s.data.forEach((val,i)=>{const xx=pad.l+pw*i/(Math.max(1,s.data.length-1)),yy=pad.t+ph*(1-clamp(val,0,1));i?x.lineTo(xx,yy):x.moveTo(xx,yy)});x.strokeStyle=s.color;x.lineWidth=2.5;x.stroke()});
+  x.font='10px system-ui';series.forEach((s,i)=>{x.fillStyle=s.color;x.fillText(s.name,pad.l+5,18+i*14)})
+}
+function charts(){
+  // Theoretical low-light curve: confidence rises to an optimum then declines slightly at extreme ambient levels.
+  const amb=[];const low=[];
+  const saved=v('ambient');
+  for(let a=0;a<=.5;a+=.01){$( 'ambient').value=a;amb.push(a/.5);low.push(calcCamera().cam)}
+  $('ambient').value=saved;
+  lineChart('glareChart',[{name:'Camera confidence vs ambient light',data:low,color:'#3b82f6'}]);
+  const gs=[0,.4,.8,1.2,1.8,2.5,3.5,4];
+  const groups=gs.map(g=>state.rows.filter(r=>Math.abs(r.G-g)<.001));
+  const cm=groups.map(a=>a.length?a.filter(r=>r.camMiss).length/a.length:0);
+  const fm=groups.map(a=>a.length?a.filter(r=>r.fusionMiss).length/a.length:0);
+  lineChart('missChart',[{name:'Camera-only',data:cm,color:'#df4d59'},{name:'Fusion',data:fm,color:'#20a464'}]);
+}
+
+for(const id of ids)$(id).addEventListener('input',render);
+$('hdr').addEventListener('change',render);
+$('run').onclick=addLog;
+
+document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('[data-preset]').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+  const p=b.dataset.preset;
+  if(p==='normal')setVals({ambient:.18,g:.2,angle:20,hd:45,od:8});
+  if(p==='mild')setVals({ambient:.16,g:1,angle:15,hd:35,od:5});
+  if(p==='strong')setVals({ambient:.12,g:3,angle:0,hd:20,od:5});
+  if(p==='center')setVals({ambient:.12,g:2.5,angle:0,hd:30,od:6});
+});
+$('random').onclick=()=>{setVals({ambient:+(Math.random()*.5).toFixed(2),g:+(Math.random()*4).toFixed(1),angle:Math.round(-30+Math.random()*60),hd:Math.round(5+Math.random()*95),od:Math.round(2+Math.random()*48)});addLog()};
+$('reset').onclick=()=>{setVals(base);state.rows=[];state.runId=0;$('logBody').innerHTML='';charts()};
+$('experiment').onclick=()=>{
+  const saved={};ids.forEach(id=>saved[id]=$(id).value);window.__experimentMode=true;
+  for(const ambient of [.00,.06,.12,.18,.25,.35,.50])for(const g of [0,.8,1.6,2.4,3.2,4.0])for(const a of [0,20]){
+    setVals({ambient,g,angle:a});addLog();
+  }
+  window.__experimentMode=false;setVals(saved);
+};
+$('download').onclick=()=>{if(!state.rows.length)return alert('먼저 실험을 실행하세요.');const f=['run','ambient','G','angle','hd','od','cam','glareSeverity','ud','ultraPresence','fusion','camMiss','fusionMiss'];const csv=[f.join(','),...state.rows.map(r=>f.map(k=>JSON.stringify(r[k]??'')).join(','))].join('\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='headlight_glare_experiment.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+
+setVals(base);
+</script>
+</body>
+</html>
