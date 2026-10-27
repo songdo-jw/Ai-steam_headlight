@@ -10,7 +10,7 @@
 header{background:var(--dark);color:white;padding:20px 24px}header h1{margin:0;font-size:22px}header p{margin:6px 0 0;color:#b8c4d6;font-size:13px}
 main{max-width:1200px;margin:auto;padding:18px;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,.8fr);gap:16px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 8px 28px rgba(31,45,61,.05)}
-.scene{position:relative;background:#08111d;border-radius:12px;overflow:hidden}.scene canvas{width:100%;display:block;aspect-ratio:16/9}.sceneTag{position:absolute;top:12px;left:12px;background:rgba(0,0,0,.52);color:#dfeaff;padding:7px 10px;border-radius:999px;font-size:11px}
+.scene{position:relative;background:#08111d;border-radius:12px;overflow:hidden}.scene canvas{width:100%;display:block;aspect-ratio:16/9}.sceneTag{position:absolute;top:12px;right:12px;background:rgba(0,0,0,.52);color:#dfeaff;padding:7px 10px;border-radius:999px;font-size:11px}
 .section{font-weight:800;font-size:14px;margin-bottom:12px}.hint{font-size:12px;color:var(--muted);line-height:1.5}
 .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}.metric{padding:12px;border:1px solid var(--line);border-radius:12px}.metric .label{font-size:11px;color:var(--muted)}.metric .value{font-size:22px;font-weight:850;margin-top:3px}.metric .sub{font-size:11px;margin-top:3px}
 .risk{margin-top:14px}.riskHead{display:flex;justify-content:space-between;font-size:12px;font-weight:700;margin-bottom:6px}.bar{height:10px;background:#eef2f7;border-radius:999px;overflow:hidden}.fill{height:100%;width:0;background:linear-gradient(90deg,#20a464,#d99b00,#df4d59);border-radius:999px}
@@ -27,7 +27,7 @@ details{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}summar
 </style>
 </head>
 <body>
-<header><h1>차량 전조등 눈부심 장애물 인지 시뮬레이터</h1><p>빛의 세기와 차량 거리가 가까워질수록 눈부심이 심해지고, 카메라 인식이 약해지는 관계를 확인합니다.</p></header>
+<header><h1>차량 전조등 눈부심 장애물 인지 시뮬레이터</h1><p>조도 법칙 E=I·cosθ/d²에 따라 전조등이 가까울수록 눈부심이 거리의 제곱으로 커지고, 포화된 영역에 가려진 장애물은 카메라가 볼 수 없게 되는 관계를 확인합니다.</p></header>
 <main>
 <section>
 <div class="card">
@@ -58,7 +58,7 @@ details{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}summar
   <div class="hint" style="margin-bottom:12px">먼저 아래 4개만 바꿔도 대부분의 핵심 실험을 해볼 수 있습니다.</div>
   <div class="primaryControls">
     <div class="control"><label><span>눈부심 세기</span><span class="val" id="gOut"></span></label><input id="g" type="range" min="0" max="4" step="0.1" value="1.2"></div>
-    <div class="control"><label><span>전조등 각도</span><span class="val" id="angleOut"></span></label><input id="angle" type="range" min="-30" max="30" step="1" value="0"></div>
+    <div class="control"><label><span>상대 차량 방향 θ</span><span class="val" id="angleOut"></span></label><input id="angle" type="range" min="-30" max="30" step="1" value="0"></div>
     <div class="control"><label><span>장애물 거리</span><span class="val" id="odOut"></span></label><input id="od" type="range" min="2" max="50" step="1" value="3"></div>
     <div class="control"><label><span>차량 거리</span><span class="val" id="hdOut"></span></label><input id="hd" type="range" min="5" max="100" step="1" value="30"></div>
   </div>
@@ -73,7 +73,7 @@ details{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}summar
 
   <div class="actions"><button class="primary" id="run">현재 조건 기록</button><button class="secondary" id="experiment">84조건 자동 실험</button><button class="secondary" id="random">랜덤 상황</button><button class="danger" id="reset">초기화</button><button class="secondary" id="download">CSV 저장</button></div>
 
-  <details><summary>고급 변수 14개</summary>
+  <details><summary>고급 변수 18개</summary>
     <div class="advancedGrid">
       <div class="control"><label><span>광원 크기</span><span class="val" id="srcOut"></span></label><input id="src" type="range" min="2" max="14" step="1" value="6"></div>
       <div class="control"><label><span>Bloom 반경</span><span class="val" id="bloomOut"></span></label><input id="bloom" type="range" min="4" max="45" step="1" value="18"></div>
@@ -88,10 +88,14 @@ details{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}summar
       <div class="control"><label><span>초음파 오차 σ</span><span class="val" id="noiseOut"></span></label><input id="noise" type="range" min="0" max="0.4" step="0.01" value="0.06"></div>
       <div class="control"><label><span>초음파 Dropout</span><span class="val" id="dropOut"></span></label><input id="drop" type="range" min="0" max="0.4" step="0.01" value="0.04"></div>
       <div class="control"><label><span>Camera 비중 α</span><span class="val" id="alphaOut"></span></label><input id="alpha" type="range" min="0" max="1" step="0.01" value="0.65"></div>
+      <div class="control"><label><span>카메라 화각 φ</span><span class="val" id="fovOut"></span></label><input id="fov" type="range" min="30" max="120" step="1" value="60"></div>
+      <div class="control"><label><span>고스트 개수</span><span class="val" id="ghostOut"></span></label><input id="ghost" type="range" min="0" max="8" step="1" value="3"></div>
+      <div class="control"><label><span>렌즈 오염</span><span class="val" id="dirtOut"></span></label><input id="dirt" type="range" min="0" max="1" step="0.01" value="0.1"></div>
+      <div class="control"><label><span>AI 플레어 제거</span></label><select id="deflare" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:white"><option value="0">OFF</option><option value="1">ON</option></select></div>
       <div class="control"><label><span>HDR</span></label><select id="hdr" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:white"><option value="0">OFF</option><option value="1">ON</option></select></div>
     </div>
   </details>
-  <div class="note">현재 카메라 점수는 실제 YOLO 성능이 아닌, 눈부심으로 인한 영상 열화를 탐색하기 위한 설명 가능한 proxy입니다. 최종 연구에서는 실제 야간 영상과 detector 결과로 보정해야 합니다.</div>
+  <div class="note">현재 카메라 점수는 실제 YOLO 성능이 아닌, 눈부심으로 인한 영상 열화를 탐색하기 위한 설명 가능한 proxy입니다. 최종 연구에서는 실제 야간 영상과 detector 결과로 보정해야 합니다.<br>광학 모델 참고: Qu et al., <i>FlareX: A Physics-Informed Dataset for Lens Flare Removal via 2D Synthesis and 3D Rendering</i>, NeurIPS 2025 — 조도 법칙(E=I·cosθ/d²), 화각 기반 입사각, Clip(B+ΣF) 포화, 산란/반사(고스트) 플레어.</div>
 </div>
 </aside>
 </main>
@@ -99,14 +103,14 @@ details{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}summar
 const $=id=>document.getElementById(id), canvas=$('scene'), ctx=canvas.getContext('2d');
 const state={rows:[],runId:0};
 const EXP_G=[0,.8,1.6,2.4,3.2,4.0];
-const ids=['g','angle','hd','src','bloom','halo','veil','ambient','wet','od','lat','refl','exp','gain','noise','drop','alpha'];
-const base={g:1.2,angle:0,hd:30,src:6,bloom:18,halo:.28,veil:.10,ambient:.12,wet:0,od:3,lat:0,refl:.35,exp:1,gain:1,noise:.06,drop:.04,alpha:.65};
+const ids=['fov','ghost','dirt','g','angle','hd','src','bloom','halo','veil','ambient','wet','od','lat','refl','exp','gain','noise','drop','alpha'];
+const base={g:1.2,angle:0,hd:30,src:6,bloom:18,halo:.28,veil:.10,ambient:.12,wet:0,od:3,lat:0,refl:.35,exp:1,gain:1,noise:.06,drop:.04,alpha:.65,fov:60,ghost:3,dirt:.1};
 function v(id){return parseFloat($(id).value)}
 function clamp(x,lo,hi){return Math.max(lo,Math.min(hi,x))}
 function level(x){return x>=.65?'높음':x>=.3?'중간':'낮음'}
 function labels(){
   $('gOut').textContent=v('g').toFixed(1);$('angleOut').textContent=v('angle').toFixed(0)+'°';$('hdOut').textContent=v('hd').toFixed(0)+' m';$('odOut').textContent=v('od').toFixed(0)+' m';
-  $('srcOut').textContent=v('src').toFixed(0)+' px';$('bloomOut').textContent=v('bloom').toFixed(0)+' px';$('haloOut').textContent=v('halo').toFixed(2);$('veilOut').textContent=v('veil').toFixed(2);$('ambientOut').textContent=v('ambient').toFixed(2);$('wetOut').textContent=v('wet').toFixed(2);$('latOut').textContent=v('lat').toFixed(0)+' px';$('reflOut').textContent=v('refl').toFixed(2);$('expOut').textContent=v('exp').toFixed(2);$('gainOut').textContent=v('gain').toFixed(2);$('noiseOut').textContent=v('noise').toFixed(2)+' m';$('dropOut').textContent=(v('drop')*100).toFixed(0)+'%';$('alphaOut').textContent=v('alpha').toFixed(2);
+  $('srcOut').textContent=v('src').toFixed(0)+' px';$('bloomOut').textContent=v('bloom').toFixed(0)+' px';$('haloOut').textContent=v('halo').toFixed(2);$('veilOut').textContent=v('veil').toFixed(2);$('ambientOut').textContent=v('ambient').toFixed(2);$('wetOut').textContent=v('wet').toFixed(2);$('latOut').textContent=v('lat').toFixed(0)+' px';$('reflOut').textContent=v('refl').toFixed(2);$('expOut').textContent=v('exp').toFixed(2);$('gainOut').textContent=v('gain').toFixed(2);$('noiseOut').textContent=v('noise').toFixed(2)+' m';$('dropOut').textContent=(v('drop')*100).toFixed(0)+'%';$('alphaOut').textContent=v('alpha').toFixed(2);$('fovOut').textContent=v('fov').toFixed(0)+'°';$('ghostOut').textContent=v('ghost').toFixed(0)+'개';$('dirtOut').textContent=v('dirt').toFixed(2);
 }
 function setVals(obj){for(const [k,val] of Object.entries(obj))if($(k))$(k).value=val;render()}
 
@@ -119,53 +123,87 @@ function exposureSuitability(ambient){
   return Math.exp(-Math.pow(ambient-peak,2)/(2*sigma*sigma));
 }
 
-// 2) Headlight glare: every optical advanced variable is connected to glare.
-function calcGlare(){
-  const G=v('g'), angle=v('angle'), hd=v('hd');
-  const distanceFactor=clamp(28/Math.max(hd,5),.18,5.6);
-  const angleFactor=.20+.80*Math.exp(-Math.pow(Math.abs(angle)/17,2));
-  const sourceFactor=.70+.055*v('src');                 // larger apparent source => more sensor coverage
-  const bloomFactor=.70+.018*v('bloom');
-  const haloFactor=.82+.55*v('halo');
-  const veilFactor=.85+.75*v('veil');
-  const wetFactor=1+.28*v('wet');                       // wet road increases reflected stray light
-  const raw=G*distanceFactor*angleFactor*sourceFactor*bloomFactor*haloFactor*veilFactor*wetFactor;
-  return clamp(1-Math.exp(-raw*.30),0,1);
+// 2) Headlight optics (FlareX, NeurIPS 2025 기반)
+//  - 조도 법칙 E = I·cosθ / d²  (논문 식 3)
+//  - 화각 φ로 입사각과 화면 위치 계산: x = W/2 + (W/2)·tanθ / tan(φ/2)  (논문 식 5)
+//  - 마주 오는 차 = 전조등 2개 → 광원 n개의 합 ΣF  (논문 식 2)
+//  - 영상 = Clip(B + ΣF): 포화(clip)된 영역의 정보는 복원 불가
+const W0=960,H0=540,LAMP_Y=H0*.48,D_REF=28,LAMP_SEP=1.5;
+function optics(){
+  const G=v('g'), hd=v('hd'), angDeg=v('angle'), ang=angDeg*Math.PI/180;
+  const half=Math.tan(v('fov')*Math.PI/360);
+  const beam=.25+.75*Math.exp(-Math.pow(Math.abs(angDeg)/17,2)); // 상대 차량 전조등 배광(하향등이 정면을 향할수록 강함)
+  const hdr=$('hdr').value==='1', clipLevel=hdr?4:1;                // HDR: 포화 한계를 높임
+  const bg=.6*v('ambient');
+  const R=v('bloom')*1.6;                                           // 산란 플레어 반경
+  const lamps=[];let E=0;
+  for(const s of [-1,1]){
+    const a=ang+Math.atan(s*LAMP_SEP/2/hd);
+    const t=Math.tan(a)/half;
+    const inFrame=Math.abs(t)<=1;
+    const Ei=G*.5*Math.cos(a)*(D_REF*D_REF)/(hd*hd)*beam;           // E = I·cosθ/d² (기준거리 28 m에서 1)
+    const peak=6*Ei*v('exp')*(.5+.08*v('src'))*(1+.5*v('dirt'));
+    const rClip=(inFrame&&peak>clipLevel-bg)?R*Math.log(peak/(clipLevel-bg)):0;
+    lamps.push({x:W0/2+(W0/2)*t,y:LAMP_Y,E:Ei,peak,rClip,inFrame});
+    E+=Ei*(inFrame?1:.3);                                           // 화면 밖 광원은 미광(stray light)만 남김
+  }
+  const raw=E*(.70+.055*v('src'))*(.70+.018*v('bloom'))*(.82+.55*v('halo'))*(.85+.75*v('veil'))*(1+.28*v('wet'))*(1+.6*v('dirt'));
+  const glare=clamp(1-Math.exp(-raw*.30),0,1);
+  const satFrac=clamp(lamps.reduce((t,l)=>t+Math.PI*l.rClip*l.rClip,0)/(W0*H0),0,1);
+  // 반사 플레어(고스트): 광원 → 화면 중심 → 반대편 직선 위에 생김
+  const ghosts=[];const n=Math.round(v('ghost'));
+  for(const l of lamps){if(!l.inFrame)continue;
+    for(let k=1;k<=n;k++){const f=.35+1.1*k/(n+1);ghosts.push({x:W0/2+(W0/2-l.x)*f,y:H0/2+(H0/2-l.y)*f,r:8+18*((k*37)%5)/4*(1+v('src')/14),a:Math.min(.35,.12*l.E)})}}
+  return {glare,E,lamps,ghosts,satFrac,beam,clipLevel,half};
 }
+function obstacleBox(){
+  const s=clamp(22/Math.max(v('od'),2)*(Math.tan(Math.PI/6)/Math.tan(v('fov')*Math.PI/360)),.25,2.5);
+  const ow=32*s,oh=78*s,ox=W0/2+v('lat'),y=H0*.88-oh;return {x:ox-ow/2,y,w:ow,h:oh};
+}
+// 장애물 중 포화(Clip) 영역에 덮인 비율 → 카메라가 볼 수 없는 부분
+function occlusionOf(o){
+  const b=obstacleBox();let hit=0,N=0;
+  for(let i=0;i<10;i++)for(let j=0;j<10;j++){N++;const px=b.x+b.w*(i+.5)/10,py=b.y+b.h*(j+.5)/10;
+    if(o.lamps.some(l=>l.rClip>0&&Math.hypot(px-l.x,py-l.y)<l.rClip))hit++}
+  const ghostHit=o.ghosts.some(g=>g.x>b.x-g.r&&g.x<b.x+b.w+g.r&&g.y>b.y-g.r&&g.y<b.y+b.h+g.r);
+  return {occ:hit/N,ghostHit};
+}
+function calcGlare(){return optics().glare}
 
-// 3) Camera confidence: every camera/scene advanced control has a measurable path.
+// 3) Camera confidence
 function calcCamera(){
   const ambient=v('ambient'), od=v('od'), refl=v('refl'), wet=v('wet'), exp=v('exp'), gain=v('gain'), lat=v('lat');
-  const glare=calcGlare();
+  const o=optics(), glare=o.glare, {occ,ghostHit}=occlusionOf(o);
+  const deflare=$('deflare').value==='1';
   const rawLightFit=exposureSuitability(ambient);
-
-  // Exposure and gain help dark scenes, but also amplify clipping/noise under glare.
   const lowLightNeed=1-rawLightFit;
   const exposureOpt=Math.exp(-Math.pow((exp-(1.05+.25*(.20-ambient)))/.55,2));
-  const gainOpt=Math.exp(-Math.pow((gain-(1.0+.55*Math.max(0,.18-ambient)))/.95,2));
   let lightFit=clamp(rawLightFit*(.82+.18*exposureOpt)+.12*lowLightNeed*exposureOpt,0,1);
   const gainPenalty=Math.max(0,gain-1)*(.045+.12*glare)+Math.max(0,gain-1)*lowLightNeed*.025;
 
-  const objectSize=clamp(11/Math.max(od,2),.22,1);
+  // 화각이 넓을수록 같은 거리의 장애물이 작게 찍힘
+  const objectSize=clamp(11/Math.max(od,2)*(Math.tan(Math.PI/6)/o.half),.22,1);
   const reflectability=.48+.52*refl;
-  const edgeFactor=clamp(1-.28*Math.pow(Math.abs(lat)/220,1.35),.68,1); // edge placement hurts framing
+  const edgeFactor=clamp(1-.28*Math.pow(Math.abs(lat)/220,1.35),.68,1);
+  const exposurePenalty=Math.max(0,exp-1)*.06+Math.max(0,1-exp)*.07;
 
-  // Strong exposure during glare expands clipping; too low exposure also hurts visibility.
-  const exposurePenalty=Math.max(0,exp-1)*(.06+.18*glare)+Math.max(0,1-exp)*.07;
-  const saturation=clamp(1-Math.exp(-glare*(1.55+.035*v('bloom')+.60*v('veil')+.045*v('src'))*(.85+.20*exp)),0,.995);
-  const contrastLoss=clamp(.04+.72*glare+.10*v('veil')+.06*v('halo')+.07*wet,0,.98);
-  const hdrHelp=$('hdr').value==='1' ? (.08*glare+.035*Math.max(0,exp-1)) : 0;
+  // 산란 플레어(대비 저하)와 고스트는 AI 플레어 제거로 일부 복원 가능, 포화 영역은 복원 불가
+  let scatterLoss=.72*glare+.10*v('veil')+.06*v('halo')+.10*v('dirt')*glare;
+  let ghostPenalty=.012*v('ghost')*glare+(ghostHit?.06:0);
+  if(deflare){scatterLoss*=.5;ghostPenalty*=.3}
+  const contrastLoss=clamp(.04+scatterLoss+.07*wet,0,.98);
+  const saturation=clamp(o.satFrac*8,0,1);
 
   let cam=(.12+.88*lightFit);
   cam*=(.68+.32*objectSize);
   cam*=(.70+.30*reflectability);
   cam*=edgeFactor;
   cam*=1-contrastLoss;
-  cam-=.24*saturation+gainPenalty+exposurePenalty;
-  cam+=hdrHelp;
+  cam*=1-.85*occ;
+  cam-=.20*saturation+gainPenalty+exposurePenalty+ghostPenalty;
   cam=clamp(cam,.01,.995);
 
-  return {cam,lightFit,glare,saturation,objectSize,reflectability,edgeFactor,rawLightFit};
+  return {cam,lightFit,glare,saturation,satFrac:o.satFrac,occlusion:occ,ghostHit,objectSize,reflectability,edgeFactor,rawLightFit,optics:o};
 }
 
 // 4) Ultrasonic: live mode remains deterministic, but configured noise/dropout reduce sensor quality.
@@ -203,7 +241,7 @@ function calc(){
   const fusion=clamp(alpha*cameraDangerEvidence+(1-alpha)*ultrasonicEvidence,0,1);
   return {
     ambient:v('ambient'),G:v('g'),angle:v('angle'),hd:v('hd'),od,lat:v('lat'),cam:camera.cam,
-    lightFit:camera.lightFit,glareSeverity:camera.glare,sat:camera.saturation,
+    lightFit:camera.lightFit,glareSeverity:camera.glare,sat:camera.saturation,satFrac:camera.satFrac,occlusion:camera.occlusion,ghostHit:camera.ghostHit,optics:camera.optics,fov:v('fov'),
     edgeFactor:camera.edgeFactor,ud:ultra.distance,uc:ultra.confidence,ultraPresence:ultra.presence,ultraQuality:ultra.quality,
     proximityRisk,cameraMissRisk,cameraDangerEvidence,ultrasonicEvidence,
     fusion,camMiss:camera.cam<.5,fusionMiss:proximityRisk>0&&fusion<.3
@@ -229,27 +267,40 @@ function draw(r){
   // Background lights
   for(let i=0;i<6;i++){ctx.fillStyle=`rgba(210,225,245,${Math.max(.04,ambient*.8)})`;ctx.beginPath();ctx.arc(W*(.08+i*.17),H*(.33+(i%2)*.02),3,0,Math.PI*2);ctx.fill()}
 
-  // Obstacle
-  const ox=W/2+r.lat, scale=clamp(22/Math.max(r.od,2),.35,2.5),ow=32*scale,oh=78*scale,by=H*.88,y=by-oh;
-  ctx.fillStyle=`rgba(${55+100*v('refl')},${65+100*v('refl')},${75+100*v('refl')},.96)`;ctx.fillRect(ox-ow/2,y,ow,oh);
-  ctx.fillStyle=`rgba(225,238,246,${.12+.7*v('refl')})`;ctx.fillRect(ox-ow*.22,y+oh*.2,ow*.44,oh*.12);
+  // Obstacle (화각이 넓을수록 작게)
+  const ob=obstacleBox();
+  ctx.fillStyle=`rgba(${55+100*v('refl')},${65+100*v('refl')},${75+100*v('refl')},.96)`;ctx.fillRect(ob.x,ob.y,ob.w,ob.h);
+  ctx.fillStyle=`rgba(225,238,246,${.12+.7*v('refl')})`;ctx.fillRect(ob.x+ob.w*.28,ob.y+ob.h*.2,ob.w*.44,ob.h*.12);
 
-  // Headlight + glare
-  const hx=W/2+(r.angle/30)*W*.42,hy=H*.48;
-  for(let layer=6;layer>=1;layer--){
-    const rad=v('bloom')*(1+layer*.55), a=Math.min(.85,v('g')*.035*layer*(30/Math.max(v('hd'),5)));
-    const g=ctx.createRadialGradient(hx,hy,1,hx,hy,rad);
-    g.addColorStop(0,`rgba(255,249,230,${a})`);g.addColorStop(.4,`rgba(255,249,230,${a*.4})`);g.addColorStop(1,'rgba(255,249,230,0)');
-    ctx.fillStyle=g;ctx.fillRect(hx-rad,hy-rad,rad*2,rad*2);
+  // Headlights: 2 lamps, scattering flare + clipped core + streaks + ghosts
+  const o=r.optics;
+  ctx.save();ctx.globalCompositeOperation='lighter';
+  for(const l of o.lamps){if(!l.inFrame)continue;
+    const R=v('bloom')*1.6*(1+Math.log1p(l.peak)*.6);
+    const g=ctx.createRadialGradient(l.x,l.y,1,l.x,l.y,R*3);
+    const a=Math.min(.9,.15*l.peak);
+    g.addColorStop(0,`rgba(255,249,230,${a})`);g.addColorStop(.3,`rgba(255,245,220,${a*.35})`);g.addColorStop(1,'rgba(255,245,220,0)');
+    ctx.fillStyle=g;ctx.fillRect(l.x-R*3,l.y-R*3,R*6,R*6);
+    // streak (렌즈 오염·스크래치 → 줄무늬 산란)
+    const sl=(60+300*v('dirt'))*Math.min(2,Math.log1p(l.peak)/2);
+    ctx.strokeStyle=`rgba(255,250,235,${Math.min(.6,.08+.4*v('dirt'))})`;ctx.lineWidth=1.5;
+    for(let k=0;k<6;k++){const th=k*Math.PI/6+.2;ctx.beginPath();ctx.moveTo(l.x-Math.cos(th)*sl,l.y-Math.sin(th)*sl);ctx.lineTo(l.x+Math.cos(th)*sl,l.y+Math.sin(th)*sl);ctx.stroke();if(v('dirt')<.2)break}
   }
-  ctx.fillStyle='rgba(255,252,240,.96)';ctx.beginPath();ctx.arc(hx,hy,Math.max(2,v('src')),0,Math.PI*2);ctx.fill();
-  const va=Math.min(.55,v('veil')*v('g')*(30/Math.max(v('hd'),5)));ctx.fillStyle=`rgba(235,244,255,${va})`;ctx.fillRect(0,0,W,H);
+  // ghosts (반사 플레어)
+  for(const gh of o.ghosts){ctx.fillStyle=`rgba(140,200,255,${gh.a})`;ctx.beginPath();
+    for(let k=0;k<6;k++){const th=k*Math.PI/3;ctx[k?'lineTo':'moveTo'](gh.x+gh.r*Math.cos(th),gh.y+gh.r*Math.sin(th))}ctx.closePath();ctx.fill()}
+  ctx.restore();
+  // 포화 영역(Clip): 정보가 완전히 사라진 흰 영역
+  for(const l of o.lamps){if(l.rClip<=0)continue;ctx.fillStyle='rgba(255,255,255,.97)';ctx.beginPath();ctx.arc(l.x,l.y,l.rClip,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='rgba(255,80,90,.8)';ctx.setLineDash([5,4]);ctx.lineWidth=1.5;ctx.stroke();ctx.setLineDash([])}
+  const va=Math.min(.55,v('veil')*o.E*(1+v('dirt')));ctx.fillStyle=`rgba(235,244,255,${va})`;ctx.fillRect(0,0,W,H);
 
-  ctx.fillStyle='rgba(0,0,0,.52)';ctx.fillRect(14,14,305,92);ctx.fillStyle='#e8f0ff';ctx.font='14px system-ui';
+  ctx.fillStyle='rgba(0,0,0,.52)';ctx.fillRect(14,14,330,114);ctx.fillStyle='#e8f0ff';ctx.font='14px system-ui';
   ctx.fillText(`주변 밝기 ${ambient.toFixed(2)} · 전조등 G=${r.G.toFixed(1)}`,28,38);
   ctx.fillText(`차량 거리 ${r.hd.toFixed(0)} m · 장애물 ${r.od.toFixed(0)} m`,28,60);
   ctx.fillText(`가시성 ${r.cam.toFixed(2)} · 눈부심 ${r.glareSeverity.toFixed(2)}`,28,82);
   ctx.fillText(`융합 위험 ${r.fusion.toFixed(2)}`,28,102);
+  ctx.fillText(`포화 면적 ${(r.satFrac*100).toFixed(1)}% · 장애물 가림 ${(r.occlusion*100).toFixed(0)}%`,28,122);
 }
 
 function impactText(r){
@@ -258,6 +309,11 @@ function impactText(r){
   parts.push(`눈부심 ${r.glareSeverity.toFixed(2)}`);
   if(Math.abs(v('lat'))>20) parts.push(`장애물 가장자리 배치로 카메라 프레이밍 ${r.edgeFactor.toFixed(2)}`);
   if(r.ud!=null) parts.push(`초음파 설정 품질 ${r.ultraQuality.toFixed(2)}`);
+  parts.push(`조도 E=${r.optics.E.toFixed(2)} (기준 28 m=1, E∝cosθ/d²)`);
+  if(r.optics.lamps.some(l=>!l.inFrame)) parts.push(`화각 ${v('fov')}° 밖 전조등은 미광만 남음`);
+  if(r.occlusion>0) parts.push(`장애물의 ${(r.occlusion*100).toFixed(0)}%가 포화 영역에 가려짐(복원 불가)`);
+  if(r.ghostHit) parts.push('고스트 플레어가 장애물과 겹침');
+  if($('deflare').value==='1') parts.push('AI 플레어 제거: 산란·고스트는 줄지만 포화 영역은 그대로');
   if(v('src')>6) parts.push('큰 광원 크기가 눈부심을 추가로 증가');
   if(v('wet')>.1) parts.push('젖은 노면 반사가 눈부심을 증가');
   if($('hdr').value==='1') parts.push('HDR이 강한 눈부심의 포화 손실을 일부 보정');
@@ -307,7 +363,7 @@ function charts(){
 }
 
 for(const id of ids)$(id).addEventListener('input',render);
-$('hdr').addEventListener('change',render);
+$('hdr').addEventListener('change',render);$('deflare').addEventListener('change',render);
 $('run').onclick=addLog;
 
 document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{
@@ -327,7 +383,7 @@ $('experiment').onclick=()=>{
   }
   window.__experimentMode=false;setVals(saved);charts();
 };
-$('download').onclick=()=>{if(!state.rows.length)return alert('먼저 실험을 실행하세요.');const f=['run','ambient','G','angle','hd','od','cam','glareSeverity','ud','ultraPresence','fusion','camMiss','fusionMiss'];const csv=[f.join(','),...state.rows.map(r=>f.map(k=>JSON.stringify(r[k]??'')).join(','))].join('\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='headlight_glare_experiment.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+$('download').onclick=()=>{if(!state.rows.length)return alert('먼저 실험을 실행하세요.');const f=['run','ambient','G','angle','hd','od','fov','cam','glareSeverity','satFrac','occlusion','ghostHit','ud','ultraPresence','fusion','camMiss','fusionMiss'];const csv=[f.join(','),...state.rows.map(r=>f.map(k=>JSON.stringify(r[k]??'')).join(','))].join('\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='headlight_glare_experiment.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
 
 setVals(base);
 </script>
