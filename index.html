@@ -21,6 +21,8 @@ details{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}summar
 .tactile{margin-top:12px;padding:12px;border-radius:12px;background:#f3f8ff;border:1px solid #d7e7ff}.tactile strong{display:block;font-size:15px}.tactile span{color:var(--muted);font-size:12px}
 .charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}.chart{height:270px}.chart canvas{width:100%;height:100%}
 .log{margin-top:16px}.table{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px}.table table{width:100%;border-collapse:collapse;font-size:11px}.table th,.table td{padding:7px;border-bottom:1px solid #edf1f5;text-align:right;white-space:nowrap}.table th{position:sticky;top:0;background:#f7f9fc}.table th:first-child,.table td:first-child{text-align:left}
+.anim{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}.anim button{border:0;border-radius:10px;padding:9px 14px;font-weight:800;cursor:pointer}.anim .spd{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--muted)}.anim .spd input{width:90px}.animHint{font-size:11px;color:var(--muted);flex:1 1 200px}
+.trace{display:block;width:100%;height:120px;margin-top:10px;border:1px solid var(--line);border-radius:10px;background:#fff}
 .note{margin-top:10px;font-size:11px;color:var(--muted);line-height:1.5}
 @media(max-width:900px){main{grid-template-columns:1fr}.charts{grid-template-columns:1fr}}
 @media(max-width:620px){.metrics{grid-template-columns:1fr 1fr}.advancedGrid{grid-template-columns:1fr}.quick{grid-template-columns:1fr 1fr}}
@@ -33,6 +35,10 @@ details{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}summar
 <div class="card">
   <div class="section">① 야간 상황</div>
   <div class="scene"><canvas id="scene" width="960" height="540"></canvas><div class="sceneTag">SYNTHETIC SIMULATION</div></div>
+  <div class="anim"><button id="play" class="primary">▶ 접근 애니메이션</button><button id="drive" class="secondary">🚗 주행 모드: OFF</button>
+    <label class="spd">속도 <input id="speed" type="range" min="0.5" max="3" step="0.25" value="1"><span id="speedOut">1.0×</span></label>
+    <label class="spd"><input type="checkbox" id="showClip"> 포화 경계 표시</label><span class="animHint" id="animHint">상대 차량이 100 m에서 5 m까지 다가오며 눈부심 변화를 보여줍니다.</span></div>
+  <canvas id="trace" class="trace"></canvas>
   <div class="metrics">
     <div class="metric"><div class="label">카메라 신뢰도</div><div class="value" id="camVal">0.00</div><div class="sub" id="camState">낮음</div></div>
     <div class="metric"><div class="label">초음파 거리</div><div class="value" id="ultraVal">—</div><div class="sub" id="ultraState">미검출</div></div>
@@ -95,7 +101,7 @@ details{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}summar
       <div class="control"><label><span>HDR</span></label><select id="hdr" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:white"><option value="0">OFF</option><option value="1">ON</option></select></div>
     </div>
   </details>
-  <div class="note">현재 카메라 점수는 실제 YOLO 성능이 아닌, 눈부심으로 인한 영상 열화를 탐색하기 위한 설명 가능한 proxy입니다. 최종 연구에서는 실제 야간 영상과 detector 결과로 보정해야 합니다.<br>광학 모델 참고: Qu et al., <i>FlareX: A Physics-Informed Dataset for Lens Flare Removal via 2D Synthesis and 3D Rendering</i>, NeurIPS 2025 — 조도 법칙(E=I·cosθ/d²), 화각 기반 입사각, Clip(B+ΣF) 포화, 산란/반사(고스트) 플레어.</div>
+  <div class="note">현재 카메라 점수는 실제 YOLO 성능이 아닌, 눈부심으로 인한 영상 열화를 탐색하기 위한 설명 가능한 proxy입니다. 최종 연구에서는 실제 야간 영상과 detector 결과로 보정해야 합니다.<br>번짐 모델: Spencer et al., <i>Physically-Based Glare Effects for Digital Images</i>, SIGGRAPH 1995 (PSF ∝ 1/θ³, 1/θ²).<br>광학 모델 참고: Qu et al., <i>FlareX: A Physics-Informed Dataset for Lens Flare Removal via 2D Synthesis and 3D Rendering</i>, NeurIPS 2025 — 조도 법칙(E=I·cosθ/d²), 화각 기반 입사각, Clip(B+ΣF) 포화, 산란/반사(고스트) 플레어.</div>
 </div>
 </aside>
 </main>
@@ -129,13 +135,17 @@ function exposureSuitability(ambient){
 //  - 마주 오는 차 = 전조등 2개 → 광원 n개의 합 ΣF  (논문 식 2)
 //  - 영상 = Clip(B + ΣF): 포화(clip)된 영역의 정보는 복원 불가
 const W0=960,H0=540,LAMP_Y=H0*.48,D_REF=28,LAMP_SEP=1.5;
+// 렌즈 번짐 PSF (Spencer et al., SIGGRAPH 1995 형태): 코어 반경 rc 밖에서 1/r³(가까운 곳)과 1/r²(먼 곳)의 합으로 감쇠
+function psf(r,rc){if(r<=rc)return 1;const x=rc/r;return .6*x*x*x+.4*x*x}
+// 포화 반경: P·psf(r) = C − B 를 만족하는 r (이분법). 밝기가 1/d² 로 커지면 r ≈ d^(−2/n), n=2~3
+function clipRadius(P,lim,r0){if(P<=lim)return 0;let lo=0,hi=3000;for(let i=0;i<40;i++){const m=(lo+hi)/2;(P*psf(m,r0)>lim)?lo=m:hi=m}return lo}
 function optics(){
   const G=v('g'), hd=v('hd'), angDeg=v('angle'), ang=angDeg*Math.PI/180;
   const half=Math.tan(v('fov')*Math.PI/360);
   const beam=.25+.75*Math.exp(-Math.pow(Math.abs(angDeg)/17,2)); // 상대 차량 전조등 배광(하향등이 정면을 향할수록 강함)
   const hdr=$('hdr').value==='1', clipLevel=hdr?4:1;                // HDR: 포화 한계를 높임
   const bg=.6*v('ambient');
-  const R=v('bloom')*1.6;                                           // 산란 플레어 반경
+  const R=v('bloom')*1.6, r0=v('bloom')*1.45;                       // 코어 반경 rc(Bloom 18 → 26 px)
   const lamps=[];let E=0;
   for(const s of [-1,1]){
     const a=ang+Math.atan(s*LAMP_SEP/2/hd);
@@ -143,8 +153,8 @@ function optics(){
     const inFrame=Math.abs(t)<=1;
     const Ei=G*.5*Math.cos(a)*(D_REF*D_REF)/(hd*hd)*beam;           // E = I·cosθ/d² (기준거리 28 m에서 1)
     const peak=6*Ei*v('exp')*(.5+.08*v('src'))*(1+.5*v('dirt'));
-    const rClip=(inFrame&&peak>clipLevel-bg)?R*Math.log(peak/(clipLevel-bg)):0;
-    lamps.push({x:W0/2+(W0/2)*t,y:LAMP_Y,E:Ei,peak,rClip,inFrame});
+    const rClip=inFrame?clipRadius(peak,clipLevel-bg,r0):0;
+    lamps.push({x:W0/2+(W0/2)*t,y:LAMP_Y,E:Ei,peak,rClip,inFrame,r0,geoPx:(W0/2)/half*0.2/hd});
     E+=Ei*(inFrame?1:.3);                                           // 화면 밖 광원은 미광(stray light)만 남김
   }
   const raw=E*(.70+.055*v('src'))*(.70+.018*v('bloom'))*(.82+.55*v('halo'))*(.85+.75*v('veil'))*(1+.28*v('wet'))*(1+.6*v('dirt'));
@@ -262,8 +272,12 @@ function draw(r){
 
   // Road
   ctx.fillStyle='#151b20';ctx.beginPath();ctx.moveTo(W*.18,H);ctx.lineTo(W*.43,H*.52);ctx.lineTo(W*.57,H*.52);ctx.lineTo(W*.82,H);ctx.closePath();ctx.fill();
-  if(v('wet')>0){ctx.globalAlpha=.15*v('wet');ctx.fillStyle='#dceeff';ctx.fillRect(W*.4,H*.58,W*.2,H*.42);ctx.globalAlpha=1}
+  if(v('wet')>0){const wg=ctx.createRadialGradient(W/2,H*.8,10,W/2,H*.8,W*.3);wg.addColorStop(0,`rgba(220,238,255,${.14*v('wet')})`);wg.addColorStop(1,'rgba(220,238,255,0)');ctx.fillStyle=wg;ctx.fillRect(0,H*.52,W,H*.48)}
 
+  // Lane dashes (주행 모드에서 흐름)
+  ctx.strokeStyle='rgba(235,225,170,.55)';ctx.lineWidth=3;
+  for(let i=0;i<14;i++){const t=((i/14)+ANIM.lane)%1, z=t*t; const y1=H*.52+(H*.48)*z, y2=H*.52+(H*.48)*Math.min(1,(t+.035)*(t+.035));
+    ctx.beginPath();ctx.moveTo(W/2,y1);ctx.lineTo(W/2,y2);ctx.lineWidth=1+5*z;ctx.stroke()}
   // Background lights
   for(let i=0;i<6;i++){ctx.fillStyle=`rgba(210,225,245,${Math.max(.04,ambient*.8)})`;ctx.beginPath();ctx.arc(W*(.08+i*.17),H*(.33+(i%2)*.02),3,0,Math.PI*2);ctx.fill()}
 
@@ -274,26 +288,64 @@ function draw(r){
 
   // Headlights: 2 lamps, scattering flare + clipped core + streaks + ghosts
   const o=r.optics;
+  // 상대 차량 차체(거리에 반비례해 커짐)
+  if(o.lamps.every(l=>l.inFrame)){const cx=(o.lamps[0].x+o.lamps[1].x)/2, half=Math.abs(o.lamps[1].x-o.lamps[0].x)/2, cw=half*2.6+8, ch=cw*.62;
+    ctx.fillStyle='rgba(20,26,34,.92)';ctx.beginPath();ctx.roundRect?ctx.roundRect(cx-cw/2,LAMP_Y-ch*.55,cw,ch,cw*.08):ctx.rect(cx-cw/2,LAMP_Y-ch*.55,cw,ch);ctx.fill();
+    ctx.fillStyle='rgba(60,75,95,.6)';ctx.fillRect(cx-cw*.36,LAMP_Y-ch*.48,cw*.72,ch*.28)}
+  // ---- 실제 카메라처럼 보이는 전조등 (부드러운 포화 코어 + 가로로 퍼지는 번짐 + 조리개 빛갈래 + 노면 반사) ----
+  const tNow=performance.now()/1000;
+  const inF=o.lamps.filter(l=>l.inFrame);
   ctx.save();ctx.globalCompositeOperation='lighter';
-  for(const l of o.lamps){if(!l.inFrame)continue;
-    const R=v('bloom')*1.6*(1+Math.log1p(l.peak)*.6);
-    const g=ctx.createRadialGradient(l.x,l.y,1,l.x,l.y,R*3);
-    const a=Math.min(.9,.15*l.peak);
-    g.addColorStop(0,`rgba(255,249,230,${a})`);g.addColorStop(.3,`rgba(255,245,220,${a*.35})`);g.addColorStop(1,'rgba(255,245,220,0)');
-    ctx.fillStyle=g;ctx.fillRect(l.x-R*3,l.y-R*3,R*6,R*6);
-    // streak (렌즈 오염·스크래치 → 줄무늬 산란)
-    const sl=(60+300*v('dirt'))*Math.min(2,Math.log1p(l.peak)/2);
-    ctx.strokeStyle=`rgba(255,250,235,${Math.min(.6,.08+.4*v('dirt'))})`;ctx.lineWidth=1.5;
-    for(let k=0;k<6;k++){const th=k*Math.PI/6+.2;ctx.beginPath();ctx.moveTo(l.x-Math.cos(th)*sl,l.y-Math.sin(th)*sl);ctx.lineTo(l.x+Math.cos(th)*sl,l.y+Math.sin(th)*sl);ctx.stroke();if(v('dirt')<.2)break}
+  // 1) 넓은 대기 산란(veiling glare): 광원 쪽에서 화면 전체로 은은하게
+  if(inF.length){const cx=inF.reduce((t,l)=>t+l.x,0)/inF.length;
+    const va=Math.min(.5,v('veil')*o.E*(1+v('dirt'))*.9+.02*o.E);
+    const g=ctx.createRadialGradient(cx,LAMP_Y,0,cx,LAMP_Y,W*.9);
+    g.addColorStop(0,`rgba(255,236,200,${va})`);g.addColorStop(.35,`rgba(220,226,240,${va*.45})`);g.addColorStop(1,'rgba(200,210,230,0)');
+    ctx.fillStyle=g;ctx.fillRect(0,0,W,H)}
+  for(const l of inF){
+    const P=l.peak*ANIM.flicker, lp=Math.log1p(P);
+    const R=v('bloom')*1.6*(1+lp*.55);
+    // 2) 가로로 넓게 퍼지는 번짐(전조등은 가로로 긴 광원)
+    ctx.save();ctx.translate(l.x,l.y);ctx.scale(1.9+.4*v('halo'),1);
+    // PSF 꼬리를 그대로 그림: 각 반경에서 밝기 = P·psf(r) (화면 표시 한계로 압축)
+    const Rmax=Math.min(900,l.rClip*2.2+l.r0*4);
+    let g=ctx.createRadialGradient(0,0,0,0,0,Rmax);
+    for(const f of [0,.05,.1,.18,.28,.4,.55,.75,1]){const val=P*psf(f*Rmax,l.r0);const al=Math.min(.75,.35*Math.log1p(val))*(1-f*f);
+      g.addColorStop(f,`rgba(255,${Math.round(244-30*f)},${Math.round(220-70*f)},${al.toFixed(3)})`)}
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,Rmax,0,7);ctx.fill();ctx.restore();
+    // 3) 조리개 빛갈래(diffraction spikes): 6갈래 + 렌즈 오염 시 가는 줄무늬 추가
+    const n=6+Math.round(10*v('dirt')), base=(60+260*v('dirt'))*Math.min(2.2,lp/1.6);
+    for(let k=0;k<n;k++){
+      const th=(k/n)*Math.PI*2+.26+(k>=6?k*.37:0)+Math.sin(tNow*.7+k)*.004;
+      const len=base*(k<6?1:.45+.4*((k*53)%7)/7)*(.92+.08*Math.sin(tNow*3+k*1.7));
+      const ex=l.x+Math.cos(th)*len, ey=l.y+Math.sin(th)*len;
+      const sg=ctx.createLinearGradient(l.x,l.y,ex,ey);
+      const sa=Math.min(.55,(k<6?.16:.06)*lp*(.6+v('dirt')));
+      sg.addColorStop(0,`rgba(255,250,235,${sa})`);sg.addColorStop(1,'rgba(255,250,235,0)');
+      ctx.strokeStyle=sg;ctx.lineWidth=k<6?2.2:1;ctx.beginPath();ctx.moveTo(l.x,l.y);ctx.lineTo(ex,ey);ctx.stroke()}
+    // 4) 젖은/마른 노면에 길게 비치는 반사
+    const refl=Math.min(.6,(.05+.5*v('wet'))*Math.min(1,P/4));
+    if(refl>.01){ctx.save();ctx.translate(l.x,l.y+8);ctx.scale(.35+.25*(1-v('wet')),1);
+      g=ctx.createLinearGradient(0,0,0,H-l.y);g.addColorStop(0,`rgba(255,235,195,${refl})`);g.addColorStop(1,'rgba(255,235,195,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,(H-l.y)/2,R*.7,(H-l.y)/2,0,0,7);ctx.fill();ctx.restore()}
   }
-  // ghosts (반사 플레어)
-  for(const gh of o.ghosts){ctx.fillStyle=`rgba(140,200,255,${gh.a})`;ctx.beginPath();
-    for(let k=0;k<6;k++){const th=k*Math.PI/3;ctx[k?'lineTo':'moveTo'](gh.x+gh.r*Math.cos(th),gh.y+gh.r*Math.sin(th))}ctx.closePath();ctx.fill()}
+  // 5) 반사 플레어(고스트): 렌즈 내부 반사로 생긴 옅은 색 원/다각형
+  for(const gh of o.ghosts){const ga=gh.a*ANIM.flicker;
+    const g=ctx.createRadialGradient(gh.x,gh.y,gh.r*.2,gh.x,gh.y,gh.r);
+    g.addColorStop(0,`rgba(120,190,255,${ga*.25})`);g.addColorStop(.8,`rgba(150,210,255,${ga*.6})`);g.addColorStop(1,'rgba(150,210,255,0)');
+    ctx.fillStyle=g;ctx.beginPath();
+    for(let k=0;k<6;k++){const th=k*Math.PI/3+.3;ctx[k?'lineTo':'moveTo'](gh.x+gh.r*Math.cos(th),gh.y+gh.r*Math.sin(th))}ctx.closePath();ctx.fill()}
   ctx.restore();
-  // 포화 영역(Clip): 정보가 완전히 사라진 흰 영역
-  for(const l of o.lamps){if(l.rClip<=0)continue;ctx.fillStyle='rgba(255,255,255,.97)';ctx.beginPath();ctx.arc(l.x,l.y,l.rClip,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle='rgba(255,80,90,.8)';ctx.setLineDash([5,4]);ctx.lineWidth=1.5;ctx.stroke();ctx.setLineDash([])}
-  const va=Math.min(.55,v('veil')*o.E*(1+v('dirt')));ctx.fillStyle=`rgba(235,244,255,${va})`;ctx.fillRect(0,0,W,H);
+  // 6) 포화 코어: 가장자리가 부드럽게 녹아드는 하얀 영역(정보가 사라진 부분)
+  for(const l of inF){if(l.rClip<=0)continue;
+    const rc=l.rClip*(1+.015*Math.sin(tNow*9+l.x));
+    ctx.save();ctx.translate(l.x,l.y);ctx.scale(1.25,1);
+    const g=ctx.createRadialGradient(0,0,0,0,0,rc*1.25);
+    g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.72,'rgba(255,255,252,.98)');g.addColorStop(.88,'rgba(255,250,235,.55)');g.addColorStop(1,'rgba(255,245,225,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,rc*1.25,0,7);ctx.fill();ctx.restore();
+    if($('showClip')&&$('showClip').checked){ctx.strokeStyle='rgba(255,80,90,.85)';ctx.setLineDash([5,4]);ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(l.x,l.y,l.rClip,0,7);ctx.stroke();ctx.setLineDash([])}}
+  // 작은 광원 자체(포화가 없을 때도 보이도록)
+  for(const l of inF){ctx.fillStyle='rgba(255,252,242,.95)';ctx.beginPath();ctx.ellipse(l.x,l.y,Math.max(2,v('src'))*1.6,Math.max(1.5,v('src'))*.8,0,0,7);ctx.fill()}
 
   ctx.fillStyle='rgba(0,0,0,.52)';ctx.fillRect(14,14,330,114);ctx.fillStyle='#e8f0ff';ctx.font='14px system-ui';
   ctx.fillText(`주변 밝기 ${ambient.toFixed(2)} · 전조등 G=${r.G.toFixed(1)}`,28,38);
@@ -309,6 +361,7 @@ function impactText(r){
   parts.push(`눈부심 ${r.glareSeverity.toFixed(2)}`);
   if(Math.abs(v('lat'))>20) parts.push(`장애물 가장자리 배치로 카메라 프레이밍 ${r.edgeFactor.toFixed(2)}`);
   if(r.ud!=null) parts.push(`초음파 설정 품질 ${r.ultraQuality.toFixed(2)}`);
+  {const l=r.optics.lamps[0];if(l.inFrame)parts.push(`전조등 실제 크기 ${l.geoPx.toFixed(1)} px → 포화 반경 ${l.rClip.toFixed(0)} px (PSF 번짐)`)}
   parts.push(`조도 E=${r.optics.E.toFixed(2)} (기준 28 m=1, E∝cosθ/d²)`);
   if(r.optics.lamps.some(l=>!l.inFrame)) parts.push(`화각 ${v('fov')}° 밖 전조등은 미광만 남음`);
   if(r.occlusion>0) parts.push(`장애물의 ${(r.occlusion*100).toFixed(0)}%가 포화 영역에 가려짐(복원 불가)`);
@@ -363,7 +416,7 @@ function charts(){
 }
 
 for(const id of ids)$(id).addEventListener('input',render);
-$('hdr').addEventListener('change',render);$('deflare').addEventListener('change',render);
+$('hdr').addEventListener('change',render);$('showClip').addEventListener('change',render);$('deflare').addEventListener('change',render);
 $('run').onclick=addLog;
 
 document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{
@@ -383,9 +436,52 @@ $('experiment').onclick=()=>{
   }
   window.__experimentMode=false;setVals(saved);charts();
 };
-$('download').onclick=()=>{if(!state.rows.length)return alert('먼저 실험을 실행하세요.');const f=['run','ambient','G','angle','hd','od','fov','cam','glareSeverity','satFrac','occlusion','ghostHit','ud','ultraPresence','fusion','camMiss','fusionMiss'];const csv=[f.join(','),...state.rows.map(r=>f.map(k=>JSON.stringify(r[k]??'')).join(','))].join('\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='headlight_glare_experiment.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+$('download').onclick=async()=>{if(!state.rows.length){$('impactNote').textContent='먼저 실험을 실행하세요.';return}const f=['run','ambient','G','angle','hd','od','fov','cam','glareSeverity','satFrac','occlusion','ghostHit','ud','ultraPresence','fusion','camMiss','fusionMiss'];const csv=[f.join(','),...state.rows.map(r=>f.map(k=>JSON.stringify(r[k]??'')).join(','))].join('\n');
+  try{const d=await window.claude?.use?.('downloads');if(d){await d.save({filename:'headlight_glare_experiment.csv',data:new Blob(['\ufeff'+csv],{type:'text/csv'})});return}}catch(e){if(e&&e.code==='declined')return}
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='headlight_glare_experiment.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
 
-setVals(base);
+// ===== 애니메이션 =====
+const ANIM={lane:0,flicker:1,playing:false,drive:false,t:0,last:0,trace:[]};
+const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function drawTrace(){
+  const c=$('trace'),dpr=devicePixelRatio||1,w=c.clientWidth||600,h=c.clientHeight||120;c.width=w*dpr;c.height=h*dpr;
+  const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.fillStyle='#fff';x.fillRect(0,0,w,h);
+  const pad={l:34,r:10,t:16,b:18},pw=w-pad.l-pad.r,ph=h-pad.t-pad.b;
+  x.strokeStyle='#e2e8f0';x.fillStyle='#77859a';x.font='10px system-ui';
+  for(let i=0;i<=2;i++){const yy=pad.t+ph*i/2;x.beginPath();x.moveTo(pad.l,yy);x.lineTo(w-pad.r,yy);x.stroke();x.fillText((1-i/2).toFixed(1),8,yy+3)}
+  x.fillText('100 m',pad.l,h-4);x.textAlign='right';x.fillText('5 m  ← 상대 차량 거리',w-pad.r,h-4);x.textAlign='left';
+  const T=ANIM.trace;if(!T.length){x.fillText('▶ 접근 애니메이션을 누르면 거리별 변화가 그려집니다',pad.l+6,pad.t+ph/2);return}
+  const X=hd=>pad.l+pw*(100-hd)/95, Y=v=>pad.t+ph*(1-v);
+  [['cam','#3b82f6','카메라 신뢰도'],['glare','#d99b00','눈부심'],['fusion','#20a464','융합 위험도']].forEach(([k,col,name],i)=>{
+    x.beginPath();T.forEach((p,j)=>{j?x.lineTo(X(p.hd),Y(p[k])):x.moveTo(X(p.hd),Y(p[k]))});x.strokeStyle=col;x.lineWidth=2.2;x.stroke();
+    const e=T[T.length-1];x.fillStyle=col;x.beginPath();x.arc(X(e.hd),Y(e[k]),3.5,0,7);x.fill();x.fillText(name,pad.l+6+i*82,11)});
+}
+function setHint(t){$('animHint').textContent=t}
+function frame(ts){
+  const dt=Math.min(.05,(ts-(ANIM.last||ts))/1000);ANIM.last=ts;const sp=v('speed');
+  if(ANIM.drive||ANIM.playing) ANIM.lane=(ANIM.lane+dt*.9*sp)%1;
+  ANIM.flicker=reduceMotion?1:1+.04*Math.sin(ts/37)+.03*Math.sin(ts/91);
+  if(ANIM.playing){
+    ANIM.t+=dt*sp/8;                                   // 8초에 100 m → 5 m
+    const k=Math.min(1,ANIM.t), hd=100-95*(k*k*(3-2*k)); // 부드럽게 가속·감속
+    $('hd').value=hd.toFixed(1);
+    const r=render();ANIM.trace.push({hd,cam:r.cam,glare:r.glareSeverity,fusion:r.fusion});drawTrace();
+    setHint(`상대 차량 ${hd.toFixed(0)} m · 조도 E=${r.optics.E.toFixed(2)} · 카메라 ${r.cam.toFixed(2)} · 융합 ${r.fusion.toFixed(2)}`);
+    if(k>=1){ANIM.playing=false;$('play').textContent='↺ 다시 재생';setHint('접근 완료: 거리가 가까워질수록 카메라 신뢰도는 떨어지고 융합 위험도는 경고를 유지합니다.')}
+  } else if(ANIM.drive) render();
+  if(ANIM.playing||ANIM.drive) requestAnimationFrame(frame); else ANIM.last=0;
+}
+function kick(){ANIM.last=0;requestAnimationFrame(frame)}
+$('play').onclick=()=>{
+  if(ANIM.playing){ANIM.playing=false;$('play').textContent='▶ 이어서 재생';return}
+  if(ANIM.t>=1||!ANIM.trace.length){ANIM.t=0;ANIM.trace=[]}
+  ANIM.playing=true;$('play').textContent='❚❚ 일시정지';if(!ANIM.drive)kick();
+};
+$('drive').onclick=()=>{ANIM.drive=!ANIM.drive;$('drive').textContent='🚗 주행 모드: '+(ANIM.drive?'ON':'OFF');if(ANIM.drive&&!ANIM.playing)kick()};
+$('speed').addEventListener('input',()=>$('speedOut').textContent=v('speed').toFixed(1)+'×');
+$('hd').addEventListener('input',()=>{if(ANIM.playing){ANIM.playing=false;$('play').textContent='▶ 이어서 재생'}});
+addEventListener('resize',drawTrace);
+setVals(base);drawTrace();
 </script>
 </body>
 </html>
