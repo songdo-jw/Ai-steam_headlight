@@ -16,6 +16,7 @@ main>section,main>aside{min-width:0}
 .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}.metric{padding:12px;border:1px solid var(--line);border-radius:12px}.metric .label{font-size:11px;color:var(--muted)}.metric .value{font-size:22px;font-weight:850;margin-top:3px}.metric .sub{font-size:11px;margin-top:3px}
 .risk{margin-top:14px}.riskHead{display:flex;justify-content:space-between;font-size:12px;font-weight:700;margin-bottom:6px}.bar{height:10px;background:#eef2f7;border-radius:999px;overflow:hidden}.fill{height:100%;width:0;background:linear-gradient(90deg,#20a464,#d99b00,#df4d59);border-radius:999px}
 .primaryControls{display:grid;gap:12px}.control{padding:12px;border:1px solid var(--line);border-radius:12px;background:#fbfcfe}.control label{display:flex;justify-content:space-between;font-size:12px;font-weight:750;margin-bottom:8px}.control .val{color:var(--blue);font-variant-numeric:tabular-nums}input[type=range]{width:100%;accent-color:var(--blue)}
+.drvModes{grid-template-columns:repeat(5,1fr)!important}@media(max-width:700px){.drvModes{grid-template-columns:1fr 1fr!important}}
 .quick{display:grid;grid-template-columns:1fr 1fr;gap:10px}.quick button{border:1px solid var(--line);background:white;border-radius:10px;padding:11px;font-weight:750;cursor:pointer}.quick button.active{border-color:#8eb8ff;background:#eef5ff;color:#1f63c5}.quick button:hover{background:#f4f8ff}
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.actions button{border:0;border-radius:10px;padding:10px 12px;font-weight:800;cursor:pointer}.primary{background:var(--blue);color:white}.secondary{background:#eef3f9;color:#25364d}.danger{background:#fdecef;color:#b43440}
 details{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}summary{cursor:pointer;font-weight:800;font-size:13px}.advancedGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
@@ -72,6 +73,23 @@ details{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}summar
   <div class="hint" id="cmHint">‘대책 비교 실험’을 누르면 현재 조건(전조등 세기, 장애물 거리, 화각 등)에서 상대 차량을 100 m → 5 m로 다가오게 하면서, 카메라가 장애물을 처음 놓치는(신뢰도 0.5 미만) 거리를 대책별로 구합니다. 거리가 짧을수록 더 가까이 올 때까지 인식한다는 뜻입니다.</div>
   <canvas id="cmChart" class="cmChart"></canvas>
   <div class="table" style="margin-top:10px"><table><thead><tr><th>대책</th><th>인지 한계 (마른 노면)</th><th>인지 한계 (젖은 노면)</th><th>15 m 카메라 신뢰도</th><th>15 m 센서 입력 빛<br>(노출×필터)</th><th>15 m 포화 면적</th></tr></thead><tbody id="cmBody"><tr><td colspan="6" style="text-align:center;color:var(--muted)">아직 실험 전입니다</td></tr></tbody></table></div>
+</div>
+
+<div class="card log" id="drvCard"><div class="section">⑤ 운전자 시점: 상향등 없이 밝게 보기</div>
+  <div class="hint">아주 어두운 길에서 상향등을 켜면 멀리까지 잘 보이지만, 길가의 보행자는 눈이 부십니다. 조명 방식별로 <b>내가 보행자를 알아보는 거리</b>와 <b>보행자 눈에 들어오는 빛(눈부심)</b>을 함께 비교합니다.</div>
+  <div class="quick drvModes" style="margin-top:10px"><button data-drv="low">하향등</button><button data-drv="high">상향등</button><button data-drv="adb">ADB(얼굴만 가림)</button><button data-drv="nir">근적외선 카메라</button><button data-drv="fir">열화상 카메라</button></div>
+  <div class="scene" style="margin-top:10px"><canvas id="drvScene" width="960" height="420" style="aspect-ratio:960/420"></canvas></div>
+  <div class="anim"><button id="drvPlay" class="primary">▶ 보행자에게 다가가기</button>
+    <label class="spd" style="flex:1 1 260px">보행자 거리 <input id="drvD" type="range" min="10" max="150" step="1" value="40" style="width:auto;flex:1"><span id="drvDOut">40 m</span></label></div>
+  <div class="metrics">
+    <div class="metric"><div class="label">보행자 인지 거리</div><div class="value" id="drvDet">—</div><div class="sub" id="drvDetSub"></div></div>
+    <div class="metric"><div class="label">지금 거리에서</div><div class="value" id="drvSee">—</div><div class="sub">운전자가 보행자를</div></div>
+    <div class="metric"><div class="label">보행자 눈 조도</div><div class="value" id="drvEye">—</div><div class="sub" id="drvEyeSub"></div></div>
+    <div class="metric"><div class="label">판정</div><div class="value" id="drvJudge" style="font-size:18px">—</div><div class="sub">보행자 눈부심</div></div>
+  </div>
+  <canvas id="drvChart" class="cmChart" style="height:290px"></canvas>
+  <div class="table" style="margin-top:10px"><table><thead><tr><th>조명 방식</th><th>보행자 인지 거리</th><th>40 m 보행자 눈 조도</th><th>눈부심 (기준 1.8 lux)</th><th>근거</th></tr></thead><tbody id="drvBody"></tbody></table></div>
+  <div class="note">모델: 조도 E = I/d². 대표 광도(가정) — 하향등 보행자 몸 쪽 5,000 cd·눈 쪽(컷오프 위) 800 cd, 상향등 중심 40,000 cd. 화면은 먼 거리도 보이도록 원근을 강조해 그림. 인지 기준 2 lux(하향등 인지 거리 ≈ 50 m가 되도록 설정). 눈부심 기준은 NHTSA ADB 규정(2022)의 상대 운전자 기준(30–59.9 m에서 1.8 lux)을 보행자에게도 적용. 근적외선·열화상 인지 거리는 UMTRI(2004) 실험 평균값. ADB는 보행자를 정확히 감지해 얼굴만 가린다고 가정(실제로는 교차로·커브에서 기준을 넘는 경우가 보고됨).</div>
 </div>
 </section>
 
@@ -589,7 +607,106 @@ $('drive').onclick=()=>{ANIM.drive=!ANIM.drive;$('drive').textContent='🚗 주�
 $('speed').addEventListener('input',()=>$('speedOut').textContent=v('speed').toFixed(1)+'×');
 $('hd').addEventListener('input',()=>{if(ANIM.playing){ANIM.playing=false;$('play').textContent='▶ 이어서 재생'}});
 addEventListener('resize',drawTrace);
-setVals(base);drawTrace();
+// ===== ⑤ 운전자 시점: 상향등 없이 밝게 보기 =====
+// 모델(대표값·가정): 광도 I(cd), 조도 E = I/d² (lux). 보행자 인지 기준 E_min = 2 lux(가정: 하향등 인지 거리 ≈ 50 m가 되도록 설정).
+// 눈부심 기준: NHTSA ADB 규정(2022)의 상대 운전자 눈 조도 한계를 보행자에게도 적용(가정).
+// 근적외선·열화상 인지 거리는 UMTRI(2004) 실험 평균값(59 m, 165 m)을 그대로 사용.
+const DRV={mode:'low',d:40,anim:false,t:0,last:0};
+const DRV_EMIN=2, LAMP_H=.65, EYE_H=1.6, PED_X=3;
+const DRV_MODES={
+  low:{name:'하향등',bodyI:5000,eye:'low',src:'모델(I/d²)'},
+  high:{name:'상향등',bodyI:40000,eye:'high',src:'모델(I/d²)'},
+  adb:{name:'ADB(얼굴만 가림)',bodyI:40000,eye:'low',src:'모델(I/d²)'},
+  nir:{name:'근적외선 카메라',det:59,eye:'low',src:'UMTRI 2004 실험값'},
+  fir:{name:'열화상 카메라',det:165,eye:'low',src:'UMTRI 2004 실험값'}};
+function eyeI(kind,d){ // 보행자 눈 방향 광도(cd, 전조등 2개 합)
+  const tv=Math.atan((EYE_H-LAMP_H)/d)*180/Math.PI, th=Math.atan(PED_X/d)*180/Math.PI;
+  return kind==='high'?40000*Math.exp(-((tv/4)**2))*Math.exp(-((th/8)**2)):800; // 하향등: 컷오프 위쪽 대표값 800 cd
+}
+function nhtsaLimit(d){return d<15?null:d<30?3.1:d<60?1.8:d<120?.6:.3}
+function drvDet(m){const M=DRV_MODES[m];return M.det??Math.sqrt(M.bodyI/DRV_EMIN)}
+function drvEye(m,d){return eyeI(DRV_MODES[m].eye,d)/(d*d)}
+function drvDraw(){
+  const c=$('drvScene'),x=c.getContext('2d'),W=c.width,H=c.height,m=DRV.mode,d=DRV.d,M=DRV_MODES[m];
+  const hz=H*.36;
+  // 원근을 조금 강조한 화면 좌표(먼 거리도 보이도록): 8 m가 화면 아래, 멀수록 지평선 쪽
+  const yOf=dd=>hz+(H-hz)*Math.pow(8/dd,.55), szOf=dd=>230*Math.pow(8/dd,.8);
+  const det=drvDet(m), Eeye=drvEye(m,d), lim=nhtsaLimit(d);
+  const thermal=m==='fir', ir=m==='nir';
+  x.fillStyle=thermal?'#0b1030':ir?'#040904':'#03060b';x.fillRect(0,0,W,H);
+  // 도로 밝기 = 그 지점 노면 조도에 비례(제곱근으로 압축)
+  const roadI=(m==='high'||m==='adb')?40000:ir?DRV_EMIN*59*59:5000;
+  for(let y=Math.ceil(hz+1);y<H;y+=2){
+    const dd=8*Math.pow((H-hz)/(y-hz),1/.55); const E=roadI/(dd*dd);
+    const b=thermal?.12:Math.min(.8,.22*Math.sqrt(E/DRV_EMIN));
+    const half=(W*.40)*Math.pow(8/dd,.55)+4;
+    x.fillStyle=thermal?'rgb(28,44,110)':ir?`rgb(${(60*b)|0},${(210*b+8)|0},${(90*b)|0})`:`rgb(${(170*b+8)|0},${(158*b+10)|0},${(128*b+14)|0})`;
+    x.fillRect(W/2-half,y,half*2,2);
+  }
+  x.strokeStyle=thermal?'rgba(130,150,230,.35)':'rgba(235,225,165,.35)';
+  for(let dd=8;dd<200;dd*=1.18){const y1=yOf(dd),y2=yOf(dd*1.08);x.lineWidth=Math.max(1,3*Math.pow(8/dd,.6));x.beginPath();x.moveTo(W/2,y1);x.lineTo(W/2,y2);x.stroke()}
+  // 거리 눈금
+  x.fillStyle='rgba(200,210,230,.55)';x.font='11px system-ui';x.textAlign='right';
+  for(const dd of [10,25,50,100,150]){const y=yOf(dd);x.fillText(dd+' m',W/2-(W*.40)*Math.pow(8/dd,.55)-8,y+4)}x.textAlign='left';
+  // 보행자(오른쪽 길가)
+  const sz=szOf(d), py=yOf(d), px=W/2+(W*.40)*Math.pow(8/d,.55)*0.95, pw=sz*.3;
+  let vis;
+  if(thermal) vis=d<=det?1:Math.max(.08,1-(d-det)/60);
+  else if(ir) vis=d<=det?1:Math.max(.05,1-(d-det)/25);
+  else {const Eb=M.bodyI/(d*d);vis=Math.max(.03,Math.min(1,Math.sqrt(Eb/DRV_EMIN)*.6))}
+  const col=thermal?`rgba(255,${(190*vis)|0},${(70*vis)|0},${.2+.8*vis})`:ir?`rgba(${(170*vis)|0},${(255*vis)|0},${(180*vis)|0},1)`:`rgba(${(225*vis)|0},${(205*vis)|0},${(170*vis)|0},1)`;
+  x.fillStyle=col;
+  x.fillRect(px-pw/2,py-sz*.80,pw,sz*.50);
+  x.fillRect(px-pw*.42,py-sz*.32,pw*.34,sz*.32);x.fillRect(px+pw*.08,py-sz*.32,pw*.34,sz*.32);
+  const hx=px,hy=py-sz*.89,hr=pw*.38;x.beginPath();x.arc(hx,hy,hr,0,7);x.fill();
+  if(m==='adb'){x.fillStyle='rgba(0,0,0,.6)';x.fillRect(hx-hr*2.2,hy-hr*1.9,hr*4.4,hr*3.4);
+    x.strokeStyle='rgba(90,200,255,.95)';x.setLineDash([4,3]);x.lineWidth=1.5;x.strokeRect(hx-hr*2.2,hy-hr*1.9,hr*4.4,hr*3.4);x.setLineDash([]);
+    x.fillStyle='#7fd3ff';x.font='bold 12px system-ui';x.fillText('얼굴 부분만 빛 차단',hx+hr*2.6,hy+4)}
+  // 보행자가 받는 눈부심 표시(눈 조도에 비례하는 빛 번짐)
+  const over=lim!=null&&Eeye>lim, gl=Math.min(1,Math.log10(1+Eeye*3)/1.7);
+  if(gl>.05&&m!=='adb'){const R=hr*(2+6*gl);const g=x.createRadialGradient(hx,hy,1,hx,hy,R);g.addColorStop(0,`rgba(255,250,225,${.9*gl})`);g.addColorStop(1,'rgba(255,250,225,0)');x.fillStyle=g;x.fillRect(hx-R,hy-R,R*2,R*2)}
+  if(over){x.strokeStyle='#ff6b78';x.lineWidth=2;x.beginPath();x.arc(hx,hy,hr*2.4,0,7);x.stroke();x.fillStyle='#ff8a95';x.font='bold 12px system-ui';x.fillText('눈부심!',hx+hr*2.8,hy-hr*1.5)}
+  if(ir||thermal){x.fillStyle=ir?'rgba(130,255,160,.95)':'rgba(255,185,95,.95)';x.font='bold 13px system-ui';x.fillText(ir?'● 근적외선(NIR) 카메라 화면 · 사람 눈에는 안 보이는 빛으로 비춤 (전조등은 하향등)':'● 열화상(FIR) 카메라 화면 · 체온을 감지해 조명이 필요 없음 (전조등은 하향등)',14,H-14)}
+  x.fillStyle='rgba(0,0,0,.62)';x.fillRect(12,12,372,96);x.fillStyle='#eaf1ff';x.font='13px system-ui';
+  x.fillText(`조명: ${M.name} · 보행자 거리 ${d.toFixed(0)} m`,24,34);
+  x.fillText(`보행자 인지 거리 ${det.toFixed(0)} m → ${d<=det?'지금 보임':'아직 안 보임'}`,24,56);
+  x.fillText(`보행자 눈 조도 ${Eeye.toFixed(2)} lux · 기준 ${lim==null?'없음(15 m 미만)':lim+' lux'}`,24,78);
+  x.fillStyle=over?'#ff8a95':'#8be0b0';x.fillText(over?'→ 보행자 눈부심 기준 초과':'→ 눈부심 기준 이내',24,100);
+  $('drvDet').textContent=det.toFixed(0)+' m';$('drvDetSub').textContent=M.src;
+  $('drvSee').textContent=d<=det?'보임':'안 보임';$('drvSee').style.color=d<=det?'var(--green)':'var(--red)';
+  $('drvEye').textContent=Eeye.toFixed(2)+' lux';$('drvEyeSub').textContent=lim==null?'15 m 미만은 기준 없음':`NHTSA 기준 ${lim} lux 대비 ${(Eeye/lim).toFixed(1)}배`;
+  $('drvJudge').textContent=over?'눈부심 초과':'눈부심 이내';$('drvJudge').style.color=over?'var(--red)':'var(--green)';
+  $('drvDOut').textContent=d.toFixed(0)+' m';
+}
+function drvChart(){
+  const c=$('drvChart'),dpr=devicePixelRatio||1,w=c.clientWidth||600,h=c.clientHeight||280;c.width=w*dpr;c.height=h*dpr;
+  const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.fillStyle='#fff';x.fillRect(0,0,w,h);
+  const L=46,R=16,T=26,B=36,pw=w-L-R,ph=h-T-B, lx=v=>L+pw*(Math.log10(v)+1)/3, ly=v=>T+ph*(1-v/180);
+  x.fillStyle='rgba(32,164,100,.08)';x.fillRect(L,T,lx(1.8)-L,ly(100)-T);x.fillStyle='#1d8a5a';x.font='11px system-ui';x.fillText('이상적인 영역: 멀리 보이고 눈부심은 적음',L+6,T+14);
+  x.strokeStyle='#e2e8f0';x.fillStyle='#77859a';x.font='10px system-ui';
+  for(const v of [.1,1,10,100]){x.beginPath();x.moveTo(lx(v),T);x.lineTo(lx(v),h-B);x.stroke();x.textAlign='center';x.fillText(v+' lux',lx(v),h-B+14)}
+  for(const v of [0,50,100,150]){x.beginPath();x.moveTo(L,ly(v));x.lineTo(w-R,ly(v));x.stroke();x.textAlign='right';x.fillText(v+' m',L-4,ly(v)+3)}
+  x.textAlign='center';x.fillText('40 m 앞 보행자의 눈에 들어오는 빛(조도, 로그 눈금) →',L+pw/2,h-6);
+  x.save();x.setLineDash([4,4]);x.strokeStyle='#df4d59';x.beginPath();x.moveTo(lx(1.8),T);x.lineTo(lx(1.8),h-B);x.stroke();x.restore();
+  x.fillStyle='#df4d59';x.textAlign='left';x.fillText('NHTSA 기준 1.8 lux',lx(1.8)+4,h-B-6);
+  x.save();x.translate(12,T+ph/2);x.rotate(-Math.PI/2);x.textAlign='center';x.fillStyle='#77859a';x.fillText('보행자 인지 거리 →',0,0);x.restore();
+  const cols={low:'#68758a',high:'#df4d59',adb:'#3b82f6',nir:'#20a464',fir:'#d99b00'};
+  const pts=Object.keys(DRV_MODES).map(k=>({k,ex:drvEye(k,40),det:drvDet(k)}));
+  // 같은 눈 조도의 점이 겹치지 않도록 이름 위치 조정
+  pts.forEach((p,i)=>{const X=lx(p.ex),Y=ly(p.det);x.fillStyle=cols[p.k];x.beginPath();x.arc(X,Y,DRV.mode===p.k?8:6,0,7);x.fill();
+    x.font=(DRV.mode===p.k?'bold ':'')+'12px system-ui';x.textAlign=X>w-140?'right':'left';x.fillText(`${DRV_MODES[p.k].name} (${p.det.toFixed(0)} m)`,X+(X>w-140?-10:10),Y+4)});
+}
+function drvTable(){
+  $('drvBody').innerHTML=Object.keys(DRV_MODES).map(k=>{const e=drvEye(k,40),ok=e<=1.8;return `<tr><td>${DRV_MODES[k].name}</td><td>${drvDet(k).toFixed(0)} m</td><td>${e.toFixed(2)} lux</td><td style="color:${ok?'var(--green)':'var(--red)'}">${ok?'기준 이내':'기준 초과 ('+(e/1.8).toFixed(0)+'배)'}</td><td>${DRV_MODES[k].src}</td></tr>`}).join('');
+}
+function drvRender(){drvDraw();drvChart();drvTable();document.querySelectorAll('[data-drv]').forEach(b=>b.classList.toggle('active',b.dataset.drv===DRV.mode))}
+document.querySelectorAll('[data-drv]').forEach(b=>b.onclick=()=>{DRV.mode=b.dataset.drv;drvRender()});
+$('drvD').addEventListener('input',()=>{DRV.d=v('drvD');DRV.anim=false;$('drvPlay').textContent='▶ 보행자에게 다가가기';drvDraw()});
+function drvFrame(ts){if(!DRV.anim)return;const dt=Math.min(.05,(ts-(DRV.last||ts))/1000);DRV.last=ts;DRV.t+=dt/7;
+  const k=Math.min(1,DRV.t);DRV.d=150-140*k;$('drvD').value=DRV.d;drvDraw();if(k>=1){DRV.anim=false;$('drvPlay').textContent='↺ 다시 다가가기';return}requestAnimationFrame(drvFrame)}
+$('drvPlay').onclick=()=>{if(DRV.anim){DRV.anim=false;$('drvPlay').textContent='▶ 이어서 다가가기';return}if(DRV.t>=1||DRV.t===0){DRV.t=0}DRV.anim=true;DRV.last=0;$('drvPlay').textContent='❚❚ 일시정지';requestAnimationFrame(drvFrame)};
+addEventListener('resize',drvChart);
+setVals(base);drawTrace();drvRender();
 </script>
 </body>
 </html>
